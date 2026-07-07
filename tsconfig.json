@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    /* Target & Environment */
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "types": ["vitest/globals"],
+    "resolvePackageJsonExports": true,
+
+    /* NestJS */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+
+    /* File Layout / Output & Build Optimizations */
+    "outDir": "./dist",
+    "sourceMap": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+
+    /* Strict Type-Checking */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "strictBindCallApply": true,
+
+    /* Linter & Code Quality at Compiler Level */
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
