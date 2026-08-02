@@ -1,4 +1,8 @@
-import { Department } from './Department.js';
+import {
+  DepartmentCircularParentError,
+  DepartmentInvalidPayloadError,
+} from '../errors/index.js';
+import { Department } from './department.entity.js';
 
 describe('Department entity', () => {
   const payload = {
@@ -118,37 +122,33 @@ describe('Department entity', () => {
   // === VALIDATION: id ===
 
   it('should throw when id is empty or whitespace', () => {
-    const errorMessage = 'DEPARTMENT.NOT_CONTAIN_NEEDED_PROPERTY';
-
-    expect(() => new Department({ ...payload, id: '' })).toThrow(errorMessage);
+    expect(() => new Department({ ...payload, id: '' })).toThrow(
+      DepartmentInvalidPayloadError,
+    );
     expect(() => new Department({ ...payload, id: '   ' })).toThrow(
-      errorMessage,
+      DepartmentInvalidPayloadError,
     );
   });
 
   // === VALIDATION: name ===
 
   it('should throw when name is empty or whitespace', () => {
-    const errorMessage = 'DEPARTMENT.NOT_CONTAIN_NEEDED_PROPERTY';
-
     expect(() => new Department({ ...payload, name: '' })).toThrow(
-      errorMessage,
+      DepartmentInvalidPayloadError,
     );
     expect(() => new Department({ ...payload, name: '   ' })).toThrow(
-      errorMessage,
+      DepartmentInvalidPayloadError,
     );
   });
 
   // === VALIDATION: code ===
 
   it('should throw when code is empty or whitespace', () => {
-    const errorMessage = 'DEPARTMENT.NOT_CONTAIN_NEEDED_PROPERTY';
-
     expect(() => new Department({ ...payload, code: '' })).toThrow(
-      errorMessage,
+      DepartmentInvalidPayloadError,
     );
     expect(() => new Department({ ...payload, code: '   ' })).toThrow(
-      errorMessage,
+      DepartmentInvalidPayloadError,
     );
   });
 
@@ -157,6 +157,6 @@ describe('Department entity', () => {
   it('should throw when id equals parentDepartmentId (self-referencing)', () => {
     expect(
       () => new Department({ ...payload, parentDepartmentId: 'dept-001' }),
-    ).toThrow('DEPARTMENT.CANNOT_BE_ITS_OWN_PARENT');
+    ).toThrow(DepartmentCircularParentError);
   });
 });

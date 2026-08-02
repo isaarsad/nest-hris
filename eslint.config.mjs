@@ -44,4 +44,15 @@ export default defineConfig(
       camelcase: 'error',
     },
   },
+  // override rule for vitest
+  {
+    files: ['**/*.spec.ts', '**/*.test.ts', 'tests/**/*'],
+    rules: {
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      'vitest/valid-expect': 'off',
+    },
+  },
 );

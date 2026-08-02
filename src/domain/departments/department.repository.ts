@@ -1,4 +1,9 @@
-import { Department } from './entities/Department.js';
+import { Department } from './entities/department.entity.js';
+
+export interface DepartmentFilter {
+  includeInactive?: boolean;
+  includeDeleted?: boolean;
+}
 
 export interface DepartmentRepository {
   save(department: Department): Promise<Department>;
@@ -7,7 +12,7 @@ export interface DepartmentRepository {
 
   findByParentId(parentDepartmentId: string): Promise<Department[]>;
 
-  findAll(): Promise<Department[]>;
+  findAll(filter: DepartmentFilter): Promise<Department[]>;
 
   existById(id: string): Promise<boolean>;
 

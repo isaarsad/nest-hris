@@ -1,4 +1,9 @@
-export interface DepartmentProperties {
+import {
+  DepartmentCircularParentError,
+  DepartmentInvalidPayloadError,
+} from '../errors/index.js';
+
+export interface DepartmentProps {
   id: string;
   name: string;
   code: string;
@@ -21,7 +26,7 @@ export class Department {
   readonly updatedAt: Date;
   readonly deletedAt: Date | null;
 
-  constructor(payload: DepartmentProperties) {
+  constructor(payload: DepartmentProps) {
     this.verifyPayload(payload);
 
     const {
@@ -67,15 +72,15 @@ export class Department {
     });
   }
 
-  private verifyPayload(payload: DepartmentProperties) {
+  private verifyPayload(payload: DepartmentProps) {
     const { id, name, code, parentDepartmentId } = payload;
 
     if (!id.trim() || !name.trim() || !code.trim()) {
-      throw new Error('DEPARTMENT.NOT_CONTAIN_NEEDED_PROPERTY');
+      throw new DepartmentInvalidPayloadError();
     }
 
     if (id === parentDepartmentId) {
-      throw new Error('DEPARTMENT.CANNOT_BE_ITS_OWN_PARENT');
+      throw new DepartmentCircularParentError(name);
     }
   }
 }

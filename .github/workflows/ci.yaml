@@ -1,0 +1,61 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      PGHOST: localhost
+      PGUSER: developer
+      PGPASSWORD: supersecretpassword
+      PGDATABASE: hris_test
+      PGPORT: 5432
+      ACCESS_TOKEN_KEY: supersecretaccesskey
+      REFRESH_TOKEN_KEY: supersecretrefreshkey
+      PRE_AUTH_TOKEN_KEY: supersecretpreauthkey
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: developer
+          POSTGRES_PASSWORD: supersecretpassword
+          POSTGRES_DB: hris_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U developer -d hris_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      matrix:
+        node-version: ['22.x']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run migrations for test database
+        run: npm run migrate
+
+      - name: Run all tests
+        run: npm run test

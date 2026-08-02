@@ -1,0 +1,9 @@
+POST http://localhost:3000/departments
+Content-Type: application/json
+
+{ "name": "Engineering", "code": "eng" }
+
+###
+
+GET http://localhost:3000/departments
+Content-Type: application/json
