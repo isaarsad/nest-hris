@@ -3,8 +3,8 @@ import { DepartmentRepository } from '../../domain/departments/department.reposi
 import {
   DepartmentAlreadyExistsError,
   DepartmentNotFoundError,
+  DepartmentPermissionDeniedError,
 } from '../../domain/departments/errors/index.js';
-import { DepartmentPermissionDeniedError } from '../../domain/departments/errors/department-permission-denied.error.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
 import { UserPermission } from '../../domain/users/user-role-permissions.js';
 
