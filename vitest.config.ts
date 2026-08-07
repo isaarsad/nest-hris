@@ -7,8 +7,11 @@ export default defineConfig({
     fileParallelism: false,
     coverage: {
       exclude: [
+        'migrations/**',
+        'src/domain/shared/value-objects/**',
         'src/domain/shared/errors/**',
         'src/domain/departments/errors/**',
+        'src/domain/users/errors/**',
         'src/infrastructure/database/entities/**',
         'src/infrastructure/database/data-source.ts',
         'src/infrastructure/config/**',

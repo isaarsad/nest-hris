@@ -4,11 +4,11 @@ import { DomainExceptionFilter } from './domain-exception.filter.js';
 import {
   DomainError,
   DomainErrorCategory,
-} from '../../../domain/shared/errors/domain.error.js';
-import { NotFoundError } from '../../../domain/shared/errors/not-found.error.js';
-import { ConflictError } from '../../../domain/shared/errors/conflict.error.js';
-import { InvariantError } from '../../../domain/shared/errors/invariant.error.js';
-import { ForbiddenError } from '../../../domain/shared/errors/forbidden.error.js';
+} from '../../../domain/shared/errors/base/domain.error.js';
+import { NotFoundError } from '../../../domain/shared/errors/base/not-found.error.js';
+import { ConflictError } from '../../../domain/shared/errors/base/conflict.error.js';
+import { InvariantError } from '../../../domain/shared/errors/base/invariant.error.js';
+import { ForbiddenError } from '../../../domain/shared/errors/base/forbidden.error.js';
 import { ZodValidationException } from 'nestjs-zod';
 import { ZodError } from 'zod';
 

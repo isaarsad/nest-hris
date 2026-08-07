@@ -1,4 +1,4 @@
-import { InvariantError } from '../../shared/errors/invariant.error.js';
+import { InvariantError } from '../../shared/errors/base/invariant.error.js';
 
 export class DepartmentInvalidPayloadError extends InvariantError {
   readonly code = 'DEPARTMENT_INVALID_PAYLOAD';

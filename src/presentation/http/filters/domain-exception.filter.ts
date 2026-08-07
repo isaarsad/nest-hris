@@ -10,7 +10,7 @@ import type { Response, Request } from 'express';
 import {
   DomainError,
   DomainErrorCategory,
-} from '../../../domain/shared/errors/domain.error.js';
+} from '../../../domain/shared/errors/base/domain.error.js';
 import { ZodValidationException } from 'nestjs-zod';
 import { ZodError } from 'zod';
 
