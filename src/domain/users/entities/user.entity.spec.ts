@@ -256,6 +256,7 @@ describe('User entity', () => {
 
     user.restore();
 
+    expect(user.isActive).toBe(true);
     expect(user.deletedAt).toBeNull();
   });
 

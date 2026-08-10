@@ -138,6 +138,7 @@ export class User {
       throw new UserNotDeletedError(this._username.value, this.id);
     }
 
+    this._isActive = true;
     this._deletedAt = null;
     this.touch();
   }
