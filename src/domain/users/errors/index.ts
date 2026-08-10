@@ -9,4 +9,4 @@ export * from './user-not-deleted-error.js';
 export * from './user-inconsistent-state.error.js';
 export * from './user-role-unchanged.error.js';
 export * from './invalid-user-role.error.js';
-export * from './user-role-hierarchy-violation.error.js';
+export * from './user-hierarchy-violation.error.js';

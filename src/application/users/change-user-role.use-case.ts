@@ -3,7 +3,7 @@ import {
   InvalidUserRoleError,
   UserNotFoundError,
   UserPermissionDeniedError,
-  UserRoleHierarchyViolationError,
+  UserHierarchyViolationError,
 } from '../../domain/users/errors/index.js';
 import {
   ROLE_HIERARCHY,
@@ -46,10 +46,10 @@ export class ChangeUserRoleUseCase {
 
     if (requestingUser.role !== UserRole.ROOT) {
       if (targetCurrentRank >= requesterRank) {
-        throw new UserRoleHierarchyViolationError();
+        throw new UserHierarchyViolationError('change role');
       }
       if (targetNewRank >= requesterRank) {
-        throw new UserRoleHierarchyViolationError();
+        throw new UserHierarchyViolationError('change role');
       }
     }
 

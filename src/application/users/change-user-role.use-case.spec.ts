@@ -8,7 +8,7 @@ import {
   InvalidUserRoleError,
   UserNotFoundError,
   UserPermissionDeniedError,
-  UserRoleHierarchyViolationError,
+  UserHierarchyViolationError,
 } from '../../domain/users/errors/index.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
@@ -187,7 +187,7 @@ describe('ChangeUserRoleUseCase', () => {
       vi.mocked(userRepository.findById).mockResolvedValue(targetUser);
 
       await expect(useCase.execute(requestingUser, command)).rejects.toThrow(
-        UserRoleHierarchyViolationError,
+        UserHierarchyViolationError,
       );
 
       expect(userRepository.save).not.toHaveBeenCalled();
@@ -205,7 +205,7 @@ describe('ChangeUserRoleUseCase', () => {
       vi.mocked(userRepository.findById).mockResolvedValue(targetUser);
 
       await expect(useCase.execute(requestingUser, command)).rejects.toThrow(
-        UserRoleHierarchyViolationError,
+        UserHierarchyViolationError,
       );
 
       expect(userRepository.save).not.toHaveBeenCalled();
