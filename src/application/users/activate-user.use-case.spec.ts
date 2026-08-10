@@ -1,11 +1,10 @@
 import { vi } from 'vitest';
-import { DeactivateUserUseCase } from './deactivate-user.use-case.js';
+import { ActivateUserUseCase } from './activate-user.use-case.js';
 import { UserRepository } from '../../domain/users/user.repository.js';
 import {
   UserNotFoundError,
   UserPermissionDeniedError,
   UserHierarchyViolationError,
-  SelfDeactivationNotAllowedError,
 } from '../../domain/users/errors/index.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
@@ -29,6 +28,7 @@ const makeRepository = (): UserRepository => ({
   existByEmail: vi.fn(),
 });
 
+// default isActive: false
 const makeUser = (overrides: Partial<UserProps> = {}): User =>
   new User({
     id: 'user-target-123',
@@ -36,35 +36,35 @@ const makeUser = (overrides: Partial<UserProps> = {}): User =>
     email: new Email('jane@example.com'),
     passwordHash: new PasswordHash('$2b$10$hashedpassword'),
     role: UserRole.EMPLOYEE,
-    isActive: true,
+    isActive: false,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
     deletedAt: null,
     ...overrides,
   });
 
-// ROOT (rank 40) — holds DEACTIVATE_USER permission, can deactivate all users
+// ROOT (rank 40) — holds ACTIVATE_USER permission, can activate all users
 const makeRootUser = () => new RequestingUser('user-root', UserRole.ROOT);
 
-// ADMIN (rank 30) — holds DEACTIVATE_USER permission, can only deactivate users below their rank
+// ADMIN (rank 30) — holds ACTIVATE_USER permission, can only activate users below their rank
 const makeAdminUser = () => new RequestingUser('user-admin', UserRole.ADMIN);
 
-// HR (rank 20) — holds DEACTIVATE_USER permission, can only deactivate users below their rank
+// HR (rank 20) — holds ACTIVATE_USER permission, can only activate users below their rank
 const makeHrUser = () => new RequestingUser('user-hr', UserRole.HR);
 
-// EMPLOYEE (rank 10) — does not have DEACTIVATE_USER permission
+// EMPLOYEE (rank 10) — does not have ACTIVATE_USER permission
 const makeEmployeeUser = () =>
   new RequestingUser('user-emp', UserRole.EMPLOYEE);
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-describe('DeactivateUserUseCase', () => {
+describe('ActivateUserUseCase', () => {
   let userRepository: UserRepository;
-  let useCase: DeactivateUserUseCase;
+  let useCase: ActivateUserUseCase;
 
   beforeEach(() => {
     userRepository = makeRepository();
-    useCase = new DeactivateUserUseCase(userRepository);
+    useCase = new ActivateUserUseCase(userRepository);
   });
 
   // === PERMISSION CHECK ===
@@ -105,31 +105,6 @@ describe('DeactivateUserUseCase', () => {
     );
   });
 
-  // === SELF-DEACTIVATION CHECK ===
-
-  describe('Self-deactivation check', () => {
-    it.each([
-      { role: UserRole.ROOT, makeRequesterFn: makeRootUser, id: 'user-root' },
-      {
-        role: UserRole.ADMIN,
-        makeRequesterFn: makeAdminUser,
-        id: 'user-admin',
-      },
-      { role: UserRole.HR, makeRequesterFn: makeHrUser, id: 'user-hr' },
-    ])(
-      'should throw SelfDeactivationNotAllowedError for $role trying to deactivate themselves',
-      async ({ makeRequesterFn, id }) => {
-        const requestingUser = makeRequesterFn();
-        await expect(useCase.execute(requestingUser, id)).rejects.toThrow(
-          SelfDeactivationNotAllowedError,
-        );
-
-        expect(userRepository.findById).not.toHaveBeenCalled();
-        expect(userRepository.save).not.toHaveBeenCalled();
-      },
-    );
-  });
-
   // === USER NOT FOUND ===
 
   describe('User not found', () => {
@@ -162,7 +137,7 @@ describe('DeactivateUserUseCase', () => {
         targetRole: UserRole.HR,
       },
     ])(
-      'should throw UserHierarchyViolationError when $role tries to deactivate another $role (same rank)',
+      'should throw UserHierarchyViolationError when $role tries to activate another $role (same rank)',
       async ({ makeRequesterFn, targetRole }) => {
         const requestingUser = makeRequesterFn();
         const targetUser = makeUser({
@@ -181,8 +156,8 @@ describe('DeactivateUserUseCase', () => {
       },
     );
 
-    it('should throw UserHierarchyViolationError when HR tries to deactivate an ADMIN (higher rank)', async () => {
-      // Violation: HR (rank 20) attempts to deactivate ADMIN (rank 30)
+    it('should throw UserHierarchyViolationError when HR tries to activate an ADMIN (higher rank)', async () => {
+      // Violation: HR (rank 20) attempts to activate ADMIN (rank 30)
       const requestingUser = makeHrUser();
       const targetUser = makeUser({
         id: 'user-target-456',
@@ -199,8 +174,8 @@ describe('DeactivateUserUseCase', () => {
       expect(userRepository.save).not.toHaveBeenCalled();
     });
 
-    it('should NOT throw hierarchy violation when ROOT deactivates any role', async () => {
-      // ROOT (rank 40) can deactivate ADMIN (rank 30)
+    it('should NOT throw hierarchy violation when ROOT activates any role', async () => {
+      // ROOT (rank 40) can activate ADMIN (rank 30)
       const requestingUser = makeRootUser();
       const targetUser = makeUser({
         id: 'user-target-456',
@@ -221,10 +196,10 @@ describe('DeactivateUserUseCase', () => {
     });
   });
 
-  // === SUCCESSFUL DEACTIVATION ===
+  // === SUCCESSFUL ACTIVATION ===
 
-  describe('Successful deactivation', () => {
-    it('should call user.deactivate() and persist the updated user', async () => {
+  describe('Successful activation', () => {
+    it('should call user.activate() and persist the updated user', async () => {
       const requestingUser = makeRootUser();
       const targetUser = makeUser({ role: UserRole.EMPLOYEE });
 
@@ -237,13 +212,13 @@ describe('DeactivateUserUseCase', () => {
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           id: targetUser.id,
-          isActive: false,
+          isActive: true,
         }),
       );
     });
 
-    it('should allow ADMIN to deactivate an HR user', async () => {
-      // ADMIN (rank 30) deactivates HR (rank 20) — valid
+    it('should allow ADMIN to activate an HR user', async () => {
+      // ADMIN (rank 30) activates HR (rank 20) — valid
       const requestingUser = makeAdminUser();
       const targetUser = makeUser({ id: 'user-target-456', role: UserRole.HR });
 
@@ -257,13 +232,13 @@ describe('DeactivateUserUseCase', () => {
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           id: targetUser.id,
-          isActive: false,
+          isActive: true,
         }),
       );
     });
 
-    it('should allow HR to deactivate an EMPLOYEE user', async () => {
-      // HR (rank 20) deactivates EMPLOYEE (rank 10) — valid
+    it('should allow HR to activate an EMPLOYEE user', async () => {
+      // HR (rank 20) activates EMPLOYEE (rank 10) — valid
       const requestingUser = makeHrUser();
       const targetUser = makeUser({ role: UserRole.EMPLOYEE });
 
@@ -277,7 +252,7 @@ describe('DeactivateUserUseCase', () => {
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           id: targetUser.id,
-          isActive: false,
+          isActive: true,
         }),
       );
     });
