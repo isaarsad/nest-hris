@@ -111,29 +111,25 @@ describe('ChangeUserRoleUseCase', () => {
   // === PERMISSION CHECK ===
 
   describe('Permission check', () => {
-    it('should throw UserPermissionDeniedError when requesting user is an EMPLOYEE', async () => {
-      const unauthorizedUser = makeEmployeeUser();
-      const command = makeChangeUserRoleCommand();
+    it.each([
+      {
+        role: UserRole.EMPLOYEE,
+        user: makeEmployeeUser(),
+      },
+      { role: UserRole.HR, user: makeHrUser() },
+    ])(
+      'should throw UserPermissionDeniedError when requesting user is $role',
+      async ({ user }) => {
+        const command = makeChangeUserRoleCommand();
 
-      await expect(useCase.execute(unauthorizedUser, command)).rejects.toThrow(
-        UserPermissionDeniedError,
-      );
+        await expect(useCase.execute(user, command)).rejects.toThrow(
+          UserPermissionDeniedError,
+        );
 
-      expect(userRepository.findById).not.toHaveBeenCalled();
-      expect(userRepository.save).not.toHaveBeenCalled();
-    });
-
-    it('should throw UserPermissionDeniedError when requesting user is an HR', async () => {
-      const unauthorizedUser = makeHrUser();
-      const command = makeChangeUserRoleCommand();
-
-      await expect(useCase.execute(unauthorizedUser, command)).rejects.toThrow(
-        UserPermissionDeniedError,
-      );
-
-      expect(userRepository.findById).not.toHaveBeenCalled();
-      expect(userRepository.save).not.toHaveBeenCalled();
-    });
+        expect(userRepository.findById).not.toHaveBeenCalled();
+        expect(userRepository.save).not.toHaveBeenCalled();
+      },
+    );
 
     it('should proceed normally when requesting user is an ADMIN', async () => {
       const authorizedUser = makeAdminUser();
