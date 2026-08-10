@@ -13,6 +13,13 @@ export enum UserPermission {
   UPDATE_USER_ROLE = 'update:user-role',
 }
 
+export const ROLE_HIERARCHY: Record<UserRole, number> = {
+  [UserRole.ROOT]: 40,
+  [UserRole.ADMIN]: 30,
+  [UserRole.HR]: 20,
+  [UserRole.EMPLOYEE]: 10,
+};
+
 export const ROLE_PERMISSIONS: Record<UserRole, UserPermission[]> = {
   [UserRole.ROOT]: [
     UserPermission.VIEW_INACTIVE_DATA,
