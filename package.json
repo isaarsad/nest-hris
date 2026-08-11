@@ -34,6 +34,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/typeorm": "^11.0.3",
+    "argon2": "^0.45.1",
     "dotenv": "^17.4.2",
     "nestjs-zod": "^5.4.0",
     "pg": "^8.22.0",
