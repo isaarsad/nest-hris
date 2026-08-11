@@ -9,11 +9,12 @@ import {
   UserRole,
 } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
+import { PasswordHasher } from '../../domain/shared/ports/password-hasher.port.js';
 
 export interface CreateUserCommand {
   username: string;
   email: string;
-  passwordHash: string;
+  passwordPlainText: string;
   role: UserRole;
 }
 
@@ -21,6 +22,7 @@ export class CreateUserUseCase {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly idGenerator: () => string,
+    private readonly passwordHasher: PasswordHasher,
   ) {}
 
   async execute(
@@ -32,7 +34,7 @@ export class CreateUserUseCase {
       throw new UserPermissionDeniedError('create');
     }
 
-    const { username, email, passwordHash, role } = command;
+    const { username, email, passwordPlainText, role } = command;
 
     const [isUsernameUsed, isEmailUsed] = await Promise.all([
       this.userRepository.existByUsername(username),
@@ -46,6 +48,8 @@ export class CreateUserUseCase {
     if (isEmailUsed) {
       throw new UserAlreadyExistsError('email', email);
     }
+
+    const passwordHash = await this.passwordHasher.hash(passwordPlainText);
 
     const user = User.create({
       id: this.idGenerator(),

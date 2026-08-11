@@ -16,6 +16,7 @@ import {
   Email,
   PasswordHash,
 } from '../../domain/shared/value-objects/index.js';
+import { PasswordHasher } from '../../domain/shared/ports/password-hasher.port.js';
 
 // ─── Mock helpers ────────────────────────────────────────────────────────────
 
@@ -30,6 +31,13 @@ const makeRepository = (): UserRepository => ({
   existByEmail: vi.fn().mockResolvedValue(false),
 });
 
+const HASHED_PASSWORD = '$2b$10$hashedpassword';
+
+const makePasswordHasher = (): PasswordHasher => ({
+  hash: vi.fn().mockResolvedValue(HASHED_PASSWORD),
+  compare: vi.fn(),
+});
+
 const mockIdGenerator = () => 'id-123';
 
 const makeCreateUserCommand = (
@@ -37,7 +45,7 @@ const makeCreateUserCommand = (
 ): CreateUserCommand => ({
   username: 'john_doe',
   email: 'john@example.com',
-  passwordHash: '$2b$10$hashedpassword',
+  passwordPlainText: 'plain-secret-123',
   role: UserRole.EMPLOYEE,
   ...overrides,
 });
@@ -47,7 +55,7 @@ const makeUser = (overrides: Partial<UserProps> = {}): User =>
     id: 'user-123',
     username: new Username('john_doe'),
     email: new Email('john@example.com'),
-    passwordHash: new PasswordHash('$2b$10$hashedpassword'),
+    passwordHash: new PasswordHash(HASHED_PASSWORD),
     role: UserRole.EMPLOYEE,
     isActive: true,
     createdAt: new Date('2024-01-01'),
@@ -67,12 +75,19 @@ const makeUnauthorizedUser = () =>
 
 describe('CreateUserUseCase', () => {
   let userRepository: UserRepository;
+  let passwordHasher: PasswordHasher;
   let useCase: CreateUserUseCase;
 
   beforeEach(() => {
     userRepository = makeRepository();
-    useCase = new CreateUserUseCase(userRepository, mockIdGenerator);
+    passwordHasher = makePasswordHasher();
+    useCase = new CreateUserUseCase(
+      userRepository,
+      mockIdGenerator,
+      passwordHasher,
+    );
   });
+
   // === PERMISSION CHECK ===
 
   describe('Permission check', () => {
@@ -85,6 +100,7 @@ describe('CreateUserUseCase', () => {
 
       expect(userRepository.existByUsername).not.toHaveBeenCalled();
       expect(userRepository.existByEmail).not.toHaveBeenCalled();
+      expect(passwordHasher.hash).not.toHaveBeenCalled();
       expect(userRepository.save).not.toHaveBeenCalled();
     });
 
@@ -103,6 +119,10 @@ describe('CreateUserUseCase', () => {
         command.username,
       );
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
+
+      expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
+        command.passwordPlainText,
+      );
 
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.any(User),
@@ -130,6 +150,7 @@ describe('CreateUserUseCase', () => {
         command.username,
       );
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
+      expect(passwordHasher.hash).not.toHaveBeenCalled();
       expect(userRepository.save).not.toHaveBeenCalled();
     });
 
@@ -148,6 +169,7 @@ describe('CreateUserUseCase', () => {
         command.username,
       );
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
+      expect(passwordHasher.hash).not.toHaveBeenCalled();
       expect(userRepository.save).not.toHaveBeenCalled();
     });
   });
@@ -155,7 +177,7 @@ describe('CreateUserUseCase', () => {
   // === SUCCESSFUL CREATION ===
 
   describe('Successful user creation', () => {
-    it('should create, persist, and return the user with correct default properties when authorized', async () => {
+    it('should hash the password and create, persist, and return the user with correct properties when authorized', async () => {
       const authorizedUser = makeAuthorizedUser();
       const command = makeCreateUserCommand();
 
@@ -170,12 +192,17 @@ describe('CreateUserUseCase', () => {
       );
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
 
+      expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
+        command.passwordPlainText,
+      );
+
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           id: 'id-123',
           role: command.role,
           username: expect.objectContaining({ value: command.username }),
           email: expect.objectContaining({ value: command.email }),
+          passwordHash: expect.objectContaining({ value: HASHED_PASSWORD }),
         }),
       );
 
@@ -183,6 +210,7 @@ describe('CreateUserUseCase', () => {
       expect(result.username.value).toBe(command.username);
       expect(result.email.value).toBe(command.email);
       expect(result.role).toBe(command.role);
+      expect(result.passwordHash.value).toBe(HASHED_PASSWORD);
     });
   });
 });
