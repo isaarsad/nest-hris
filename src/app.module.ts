@@ -6,9 +6,14 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { DomainExceptionFilter } from './presentation/http/filters/domain-exception.filter.js';
 import { HttpLoggingInterceptor } from './presentation/http/interceptors/logging.interceptor.js';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { UsersModule } from './presentation/http/users/users.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forRoot(dataSourceOptions), DepartmentsModule],
+  imports: [
+    TypeOrmModule.forRoot(dataSourceOptions),
+    DepartmentsModule,
+    UsersModule,
+  ],
   providers: [
     {
       provide: APP_FILTER,

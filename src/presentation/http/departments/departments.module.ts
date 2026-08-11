@@ -14,7 +14,7 @@ import { DepartmentOrmEntity } from '../../../infrastructure/database/entities/d
 import { TypeOrmDepartmentRepository } from '../../../infrastructure/repositories/typeorm-department.repository.js';
 
 // Presentation Layer (Controller)
-import { DepartmentsController } from './departments.controller.js'; // Sesuaikan path Controller lo
+import { DepartmentsController } from './departments.controller.js';
 
 export const DEPARTMENT_REPOSITORY = Symbol('DEPARTMENT_REPOSITORY');
 
