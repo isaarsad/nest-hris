@@ -15,6 +15,9 @@ export enum UserPermission {
   ACTIVATE_USER = 'activate:user',
   DELETE_USER = 'delete:user',
   RESTORE_USER = 'restore:user',
+  VIEW_USERS = 'view:users',
+  VIEW_INACTIVE_USERS = 'view:inactive-users',
+  VIEW_DELETED_USERS = 'view:deleted-users',
 }
 
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
@@ -35,6 +38,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, UserPermission[]> = {
     UserPermission.ACTIVATE_USER,
     UserPermission.DELETE_USER,
     UserPermission.RESTORE_USER,
+    UserPermission.VIEW_USERS,
+    UserPermission.VIEW_INACTIVE_USERS,
+    UserPermission.VIEW_DELETED_USERS,
   ],
   [UserRole.ADMIN]: [
     UserPermission.VIEW_INACTIVE_DEPARTMENTS,
@@ -44,12 +50,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, UserPermission[]> = {
     UserPermission.DEACTIVATE_USER,
     UserPermission.ACTIVATE_USER,
     UserPermission.RESTORE_USER,
+    UserPermission.VIEW_USERS,
+    UserPermission.VIEW_INACTIVE_USERS,
+    UserPermission.VIEW_DELETED_USERS,
   ],
   [UserRole.HR]: [
     UserPermission.VIEW_INACTIVE_DEPARTMENTS,
     UserPermission.CREATE_USER,
     UserPermission.DEACTIVATE_USER,
     UserPermission.ACTIVATE_USER,
+    UserPermission.VIEW_USERS,
+    UserPermission.VIEW_INACTIVE_USERS,
   ],
   [UserRole.EMPLOYEE]: [],
 };
