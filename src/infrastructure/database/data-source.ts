@@ -1,10 +1,11 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { config } from '../config/index.js';
 import { DepartmentOrmEntity } from './entities/department.orm-entity.js';
+import { UserOrmEntity } from './entities/user.orm-entity.js';
 
 export const dataSourceOptions: DataSourceOptions = {
   ...config.database,
-  entities: [DepartmentOrmEntity],
+  entities: [DepartmentOrmEntity, UserOrmEntity],
   migrations: [
     process.env.NODE_ENV === 'production'
       ? 'dist/migrations/*.js'
