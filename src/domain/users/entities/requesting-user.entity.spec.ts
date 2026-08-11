@@ -23,12 +23,16 @@ describe('RequestingUser entity', () => {
   describe('ROOT role', () => {
     const root = new RequestingUser('root-001', UserRole.ROOT);
 
-    it('should have VIEW_INACTIVE_DATA permission', () => {
-      expect(root.hasPermission(UserPermission.VIEW_INACTIVE_DATA)).toBe(true);
+    it('should have VIEW_INACTIVE_DEPARTMENTS permission', () => {
+      expect(root.hasPermission(UserPermission.VIEW_INACTIVE_DEPARTMENTS)).toBe(
+        true,
+      );
     });
 
-    it('should have VIEW_DELETED_DATA permission', () => {
-      expect(root.hasPermission(UserPermission.VIEW_DELETED_DATA)).toBe(true);
+    it('should have VIEW_DELETED_DEPARTMENTS permission', () => {
+      expect(root.hasPermission(UserPermission.VIEW_DELETED_DEPARTMENTS)).toBe(
+        true,
+      );
     });
   });
 
@@ -37,12 +41,16 @@ describe('RequestingUser entity', () => {
   describe('ADMIN role', () => {
     const admin = new RequestingUser('admin-001', UserRole.ADMIN);
 
-    it('should have VIEW_INACTIVE_DATA permission', () => {
-      expect(admin.hasPermission(UserPermission.VIEW_INACTIVE_DATA)).toBe(true);
+    it('should have VIEW_INACTIVE_DEPARTMENTS permission', () => {
+      expect(
+        admin.hasPermission(UserPermission.VIEW_INACTIVE_DEPARTMENTS),
+      ).toBe(true);
     });
 
-    it('should NOT have VIEW_DELETED_DATA permission', () => {
-      expect(admin.hasPermission(UserPermission.VIEW_DELETED_DATA)).toBe(false);
+    it('should NOT have VIEW_DELETED_DEPARTMENTS permission', () => {
+      expect(admin.hasPermission(UserPermission.VIEW_DELETED_DEPARTMENTS)).toBe(
+        false,
+      );
     });
   });
 
@@ -51,12 +59,16 @@ describe('RequestingUser entity', () => {
   describe('HR role', () => {
     const hr = new RequestingUser('hr-001', UserRole.HR);
 
-    it('should have VIEW_INACTIVE_DATA permission', () => {
-      expect(hr.hasPermission(UserPermission.VIEW_INACTIVE_DATA)).toBe(true);
+    it('should have VIEW_INACTIVE_DEPARTMENTS permission', () => {
+      expect(hr.hasPermission(UserPermission.VIEW_INACTIVE_DEPARTMENTS)).toBe(
+        true,
+      );
     });
 
-    it('should NOT have VIEW_DELETED_DATA permission', () => {
-      expect(hr.hasPermission(UserPermission.VIEW_DELETED_DATA)).toBe(false);
+    it('should NOT have VIEW_DELETED_DEPARTMENTS permission', () => {
+      expect(hr.hasPermission(UserPermission.VIEW_DELETED_DEPARTMENTS)).toBe(
+        false,
+      );
     });
   });
 
@@ -65,16 +77,16 @@ describe('RequestingUser entity', () => {
   describe('EMPLOYEE role', () => {
     const employee = new RequestingUser('emp-001', UserRole.EMPLOYEE);
 
-    it('should NOT have VIEW_INACTIVE_DATA permission', () => {
-      expect(employee.hasPermission(UserPermission.VIEW_INACTIVE_DATA)).toBe(
-        false,
-      );
+    it('should NOT have VIEW_INACTIVE_DEPARTMENTS permission', () => {
+      expect(
+        employee.hasPermission(UserPermission.VIEW_INACTIVE_DEPARTMENTS),
+      ).toBe(false);
     });
 
-    it('should NOT have VIEW_DELETED_DATA permission', () => {
-      expect(employee.hasPermission(UserPermission.VIEW_DELETED_DATA)).toBe(
-        false,
-      );
+    it('should NOT have VIEW_DELETED_DEPARTMENTS permission', () => {
+      expect(
+        employee.hasPermission(UserPermission.VIEW_DELETED_DEPARTMENTS),
+      ).toBe(false);
     });
   });
 });

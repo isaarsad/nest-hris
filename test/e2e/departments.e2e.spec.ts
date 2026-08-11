@@ -449,7 +449,7 @@ describe('Departments (E2E)', () => {
         );
       });
 
-      it('harus mengembalikan department dengan struktur field yang lengkap', async () => {
+      it('should return departments with complete field structures', async () => {
         await departmentHelper.insert({
           name: 'Technology',
           code: 'TECH',
@@ -468,11 +468,11 @@ describe('Departments (E2E)', () => {
       });
 
       /**
-       * CurrentUser decorator saat ini mengembalikan UserRole.ADMIN secara hardcoded.
-       * ADMIN memiliki izin VIEW_INACTIVE_DATA tapi tidak VIEW_DELETED_DATA.
-       * Sehingga departement inactive akan ikut ditampilkan, tapi yang deleted tidak.
+       * The CurrentUser decorator currently returns UserRole.ADMIN as a hardcoded value.
+       * ADMIN has permission to VIEW_INACTIVE_DEPARTMENTS but not VIEW_DELETED_DEPARTMENTS.
+       * Therefore, inactive departments are included in the response, but deleted departments are not.
        */
-      it('harus menyertakan department inactive karena ADMIN punya izin VIEW_INACTIVE_DATA', async () => {
+      it('should include inactive departments because ADMIN has VIEW_INACTIVE_DEPARTMENTS permission', async () => {
         await departmentHelper.insert({
           name: 'Active Department',
           code: 'ACT',
@@ -493,7 +493,7 @@ describe('Departments (E2E)', () => {
         expect(names).toContain('Inactive Department');
       });
 
-      it('tidak boleh menampilkan department yang sudah soft-deleted (ADMIN tidak punya VIEW_DELETED_DATA)', async () => {
+      it('should exclude soft-deleted departments when user lacks VIEW_DELETED_DEPARTMENTS permission', async () => {
         await departmentHelper.insert({
           name: 'Normal Department',
           code: 'NORM',
@@ -511,7 +511,7 @@ describe('Departments (E2E)', () => {
         expect(response.body[0].name).toBe('Normal Department');
       });
 
-      it('harus mengembalikan hasil yang diurutkan: isActive DESC, name ASC', async () => {
+      it('should return results ordered by isActive DESC and name ASC', async () => {
         await departmentHelper.insert({
           name: 'Zebra Dept',
           code: 'ZEB',
@@ -541,8 +541,8 @@ describe('Departments (E2E)', () => {
       });
     });
 
-    describe('Integrasi data — create lalu get', () => {
-      it('department yang dibuat via POST harus muncul di GET', async () => {
+    describe('Data integration - create then get', () => {
+      it('should display newly created department via POST in GET endpoint', async () => {
         await request(server)
           .post('/departments')
           .send({ name: 'Legal', code: 'LEG' })
@@ -558,7 +558,7 @@ describe('Departments (E2E)', () => {
         });
       });
 
-      it('harus mampu membuat beberapa department dan mengambil semuanya', async () => {
+      it('should successfully create multiple departments and retrieve all of them', async () => {
         const departments = [
           { name: 'Engineering', code: 'ENG' },
           { name: 'Product', code: 'PRD' },
@@ -577,20 +577,20 @@ describe('Departments (E2E)', () => {
   });
 
   // ============================================================
-  // Skenario tambahan — Error Response Shape
+  // Additional scenarios — Error Response Shape
   // ============================================================
-  describe('Response shape untuk error', () => {
-    it('response error harus memiliki field statusCode, message, dan timestamp', async () => {
+  describe('Error response shape', () => {
+    it('should contain statusCode, message, and timestamp fields in error response', async () => {
       const response = await request(server)
         .post('/departments')
-        .send({}) // payload tidak valid
+        .send({}) // invalid payload
         .expect(400);
 
       expect(response.body).toHaveProperty('statusCode');
       expect(response.body).toHaveProperty('timestamp');
     });
 
-    it('response error 409 harus memiliki field error dan message', async () => {
+    it('should contain error and message fields in 409 conflict error response', async () => {
       await departmentHelper.insert({ name: 'Engineering', code: 'ENG' });
 
       const response = await request(server)
@@ -607,7 +607,7 @@ describe('Departments (E2E)', () => {
       expect(response.body).toHaveProperty('timestamp');
     });
 
-    it('response error 404 harus memiliki field error NOT_FOUND', async () => {
+    it('should contain error field with DEPARTMENT_NOT_FOUND in 404 error response', async () => {
       const response = await request(server)
         .post('/departments')
         .send({
