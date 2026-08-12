@@ -1,5 +1,6 @@
 import { RequestingUser } from './requesting-user.entity.js';
 import { UserRole, UserPermission } from '../user-role-permissions.js';
+import { InvalidUserRoleError } from '../errors/index.js';
 
 describe('RequestingUser entity', () => {
   // === CONSTRUCTOR ===
@@ -11,11 +12,22 @@ describe('RequestingUser entity', () => {
     expect(user.role).toBe(UserRole.ADMIN);
   });
 
-  it('should expose id and role as readonly properties', () => {
-    const user = new RequestingUser('user-002', UserRole.HR);
+  it('should throw InvalidUserRoleError when role is invalid', () => {
+    expect(() => new RequestingUser('user-001', 'INVALID' as UserRole)).toThrow(
+      InvalidUserRoleError,
+    );
+  });
 
-    expect(user.id).toBe('user-002');
-    expect(user.role).toBe(UserRole.HR);
+  it('should throw InvalidUserRoleError when role is empty string', () => {
+    expect(() => new RequestingUser('user-001', '' as UserRole)).toThrow(
+      InvalidUserRoleError,
+    );
+  });
+
+  it('should throw InvalidUserRoleError when role is null', () => {
+    expect(
+      () => new RequestingUser('user-001', null as unknown as UserRole),
+    ).toThrow(InvalidUserRoleError);
   });
 
   // === hasPermission: ROOT ===
@@ -262,6 +274,92 @@ describe('RequestingUser entity', () => {
     });
   });
 
+  // === hasPermission: edge case ===
+
+  it('should return false when role has no permission mapping', () => {
+    const user = new RequestingUser('user-001', UserRole.ADMIN);
+    (user as any).role = 'UNKNOWN_ROLE';
+
+    expect(user.hasPermission(UserPermission.VIEW_USERS)).toBe(false);
+  });
+
+  // === isSuperiorTo ===
+
+  describe('isSuperiorTo', () => {
+    describe('ROOT role', () => {
+      const root = new RequestingUser('root-001', UserRole.ROOT);
+
+      it('should always be superior to any role (including ROOT itself)', () => {
+        expect(root.isSuperiorTo(UserRole.ROOT)).toBe(true);
+        expect(root.isSuperiorTo(UserRole.ADMIN)).toBe(true);
+        expect(root.isSuperiorTo(UserRole.HR)).toBe(true);
+        expect(root.isSuperiorTo(UserRole.EMPLOYEE)).toBe(true);
+      });
+    });
+
+    describe('ADMIN role', () => {
+      const admin = new RequestingUser('admin-001', UserRole.ADMIN);
+
+      it('should NOT be superior to ROOT', () => {
+        expect(admin.isSuperiorTo(UserRole.ROOT)).toBe(false);
+      });
+
+      it('should NOT be superior to ADMIN (same rank)', () => {
+        expect(admin.isSuperiorTo(UserRole.ADMIN)).toBe(false);
+      });
+
+      it('should be superior to HR', () => {
+        expect(admin.isSuperiorTo(UserRole.HR)).toBe(true);
+      });
+
+      it('should be superior to EMPLOYEE', () => {
+        expect(admin.isSuperiorTo(UserRole.EMPLOYEE)).toBe(true);
+      });
+    });
+
+    describe('HR role', () => {
+      const hr = new RequestingUser('hr-001', UserRole.HR);
+
+      it('should NOT be superior to ROOT', () => {
+        expect(hr.isSuperiorTo(UserRole.ROOT)).toBe(false);
+      });
+
+      it('should NOT be superior to ADMIN', () => {
+        expect(hr.isSuperiorTo(UserRole.ADMIN)).toBe(false);
+      });
+
+      it('should NOT be superior to HR (same rank)', () => {
+        expect(hr.isSuperiorTo(UserRole.HR)).toBe(false);
+      });
+
+      it('should be superior to EMPLOYEE', () => {
+        expect(hr.isSuperiorTo(UserRole.EMPLOYEE)).toBe(true);
+      });
+    });
+
+    describe('EMPLOYEE role', () => {
+      const employee = new RequestingUser('emp-001', UserRole.EMPLOYEE);
+
+      it('should NOT be superior to any role', () => {
+        expect(employee.isSuperiorTo(UserRole.ROOT)).toBe(false);
+        expect(employee.isSuperiorTo(UserRole.ADMIN)).toBe(false);
+        expect(employee.isSuperiorTo(UserRole.HR)).toBe(false);
+        expect(employee.isSuperiorTo(UserRole.EMPLOYEE)).toBe(false);
+      });
+    });
+    describe('invalid targetRole', () => {
+      const admin = new RequestingUser('admin-001', UserRole.ADMIN);
+
+      it('should return false when targetRole is invalid', () => {
+        expect(admin.isSuperiorTo('INVALID' as UserRole)).toBe(false);
+      });
+
+      it('should return false when targetRole is null', () => {
+        expect(admin.isSuperiorTo(null as unknown as UserRole)).toBe(false);
+      });
+    });
+  });
+
   // === canAssignRole ===
 
   describe('canAssignRole', () => {
@@ -342,6 +440,17 @@ describe('RequestingUser entity', () => {
 
       it('should NOT be able to assign EMPLOYEE role (same rank)', () => {
         expect(employee.canAssignRole(UserRole.EMPLOYEE)).toBe(false);
+      });
+    });
+    describe('invalid targetRole', () => {
+      const admin = new RequestingUser('admin-001', UserRole.ADMIN);
+
+      it('should return false when targetRole is invalid', () => {
+        expect(admin.canAssignRole('INVALID' as UserRole)).toBe(false);
+      });
+
+      it('should return false when targetRole is null', () => {
+        expect(admin.canAssignRole(null as unknown as UserRole)).toBe(false);
       });
     });
   });
