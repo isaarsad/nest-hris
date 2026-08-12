@@ -40,27 +40,21 @@ export class ChangeUserRoleUseCase {
       throw new UserNotFoundError(command.userId);
     }
 
-    const requesterRank = ROLE_HIERARCHY[requestingUser.role];
-    const targetCurrentRank = ROLE_HIERARCHY[user.role];
-    const targetNewRank = ROLE_HIERARCHY[command.newRole];
-
-    if (requestingUser.role !== UserRole.ROOT) {
-      if (targetCurrentRank >= requesterRank) {
-        throw new UserHierarchyViolationError(
-          'change role',
-          requestingUser.role,
-          user.role,
-        );
-      }
-      if (targetNewRank >= requesterRank) {
-        throw new UserHierarchyViolationError(
-          'change role',
-          requestingUser.role,
-          command.newRole,
-        );
-      }
+    if (!requestingUser.isSuperiorTo(user.role)) {
+      throw new UserHierarchyViolationError(
+        'change role',
+        requestingUser.role,
+        user.role,
+      );
     }
 
+    if (!requestingUser.canAssignRole(command.newRole)) {
+      throw new UserHierarchyViolationError(
+        'change role',
+        requestingUser.role,
+        command.newRole,
+      );
+    }
     user.changeRole(command.newRole);
 
     await this.userRepository.save(user);
