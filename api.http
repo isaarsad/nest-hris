@@ -7,3 +7,35 @@ Content-Type: application/json
 
 GET http://localhost:3000/departments
 Content-Type: application/json
+
+@baseUrl = http://localhost:3000
+# Ganti userId ini pake UUID asli dari database / hasil response POST /users
+@userId = d39c3aba-7687-43be-96cb-305938967293
+
+### 1. Create User (Lulus Zod DTO Validation)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "passwordPlainText": "SuperSecret123!",
+  "role": "HR"
+}
+
+### 2. Get All Users
+GET {{baseUrl}}/users
+
+### 3. Activate User (Path Variable UUID)
+PATCH {{baseUrl}}/users/{{userId}}/activate
+
+### 4. Deactivate User (Path Variable UUID)
+PATCH {{baseUrl}}/users/{{userId}}/deactivate
+
+### 5. Change User Role (Lulus Zod Enum Validation)
+PATCH {{baseUrl}}/users/{{userId}}/role
+Content-Type: application/json
+
+{
+  "role": "ROOT"
+}

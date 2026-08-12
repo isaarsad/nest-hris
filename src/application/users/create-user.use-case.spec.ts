@@ -7,6 +7,7 @@ import { UserRepository } from '../../domain/users/user.repository.js';
 import {
   UserAlreadyExistsError,
   UserPermissionDeniedError,
+  UserRoleHierarchyError,
 } from '../../domain/users/errors/index.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
@@ -64,12 +65,14 @@ const makeUser = (overrides: Partial<UserProps> = {}): User =>
     ...overrides,
   });
 
+const makeRequestingUser = (role: UserRole) =>
+  new RequestingUser(`user-${role.toLowerCase()}`, role);
+
 // User with the ROOT role has CREATE_USER permission
-const makeAuthorizedUser = () => new RequestingUser('user-root', UserRole.ROOT);
+const makeAuthorizedUser = () => makeRequestingUser(UserRole.ROOT);
 
 // Users with the EMPLOYEE role do not have the CREATE_USER permission
-const makeUnauthorizedUser = () =>
-  new RequestingUser('user-emp', UserRole.EMPLOYEE);
+const makeUnauthorizedUser = () => makeRequestingUser(UserRole.EMPLOYEE);
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -127,6 +130,94 @@ describe('CreateUserUseCase', () => {
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.any(User),
       );
+
+      expect(result).toEqual(savedUser);
+    });
+  });
+
+  // === ROLE HIERARCHY CHECK ===
+
+  describe('Role hierarchy check', () => {
+    it('should throw UserRoleHierarchyError when ADMIN tries to create a user with ADMIN role', async () => {
+      const adminUser = makeRequestingUser(UserRole.ADMIN);
+      const command = makeCreateUserCommand({ role: UserRole.ADMIN });
+
+      await expect(useCase.execute(adminUser, command)).rejects.toThrow(
+        new UserRoleHierarchyError(UserRole.ADMIN, UserRole.ADMIN),
+      );
+
+      expect(userRepository.existByUsername).not.toHaveBeenCalled();
+      expect(userRepository.existByEmail).not.toHaveBeenCalled();
+      expect(passwordHasher.hash).not.toHaveBeenCalled();
+      expect(userRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw UserRoleHierarchyError when HR tries to create a user with HR role', async () => {
+      const hrUser = makeRequestingUser(UserRole.HR);
+      const command = makeCreateUserCommand({ role: UserRole.HR });
+
+      await expect(useCase.execute(hrUser, command)).rejects.toThrow(
+        new UserRoleHierarchyError(UserRole.HR, UserRole.HR),
+      );
+
+      expect(userRepository.existByUsername).not.toHaveBeenCalled();
+      expect(userRepository.existByEmail).not.toHaveBeenCalled();
+      expect(passwordHasher.hash).not.toHaveBeenCalled();
+      expect(userRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should proceed normally when ADMIN creates a user with HR role', async () => {
+      const adminUser = makeRequestingUser(UserRole.ADMIN);
+      const savedUser = makeUser({ role: UserRole.HR });
+      const command = makeCreateUserCommand({ role: UserRole.HR });
+
+      vi.mocked(userRepository.save).mockResolvedValue(savedUser);
+
+      const result = await useCase.execute(adminUser, command);
+
+      expect(userRepository.existByUsername).toHaveBeenCalledWith(
+        command.username,
+      );
+      expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
+      expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
+        command.passwordPlainText,
+      );
+      expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
+        expect.any(User),
+      );
+      expect(result).toEqual(savedUser);
+    });
+
+    it('should proceed normally when HR creates a user with EMPLOYEE role', async () => {
+      const hrUser = makeRequestingUser(UserRole.HR);
+      const savedUser = makeUser({ role: UserRole.EMPLOYEE });
+      const command = makeCreateUserCommand({ role: UserRole.EMPLOYEE });
+
+      vi.mocked(userRepository.save).mockResolvedValue(savedUser);
+
+      const result = await useCase.execute(hrUser, command);
+
+      expect(userRepository.existByUsername).toHaveBeenCalledWith(
+        command.username,
+      );
+      expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
+      expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
+        command.passwordPlainText,
+      );
+      expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
+        expect.any(User),
+      );
+      expect(result).toEqual(savedUser);
+    });
+
+    it('should allow ROOT to create a user with any role including ROOT', async () => {
+      const rootUser = makeRequestingUser(UserRole.ROOT);
+      const savedUser = makeUser({ role: UserRole.ADMIN });
+      const command = makeCreateUserCommand({ role: UserRole.ADMIN });
+
+      vi.mocked(userRepository.save).mockResolvedValue(savedUser);
+
+      const result = await useCase.execute(rootUser, command);
 
       expect(result).toEqual(savedUser);
     });

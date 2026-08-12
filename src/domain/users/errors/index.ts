@@ -11,3 +11,4 @@ export * from './user-role-unchanged.error.js';
 export * from './invalid-user-role.error.js';
 export * from './user-hierarchy-violation.error.js';
 export * from './self-deactivation-not-allowed.error.js';
+export * from './user-role-hierarchy.error.js';
