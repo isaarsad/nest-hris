@@ -7,7 +7,7 @@ import { UserRepository } from '../../domain/users/user.repository.js';
 import {
   UserAlreadyExistsError,
   UserPermissionDeniedError,
-  UserRoleHierarchyError,
+  UserHierarchyViolationError,
 } from '../../domain/users/errors/index.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
@@ -138,12 +138,16 @@ describe('CreateUserUseCase', () => {
   // === ROLE HIERARCHY CHECK ===
 
   describe('Role hierarchy check', () => {
-    it('should throw UserRoleHierarchyError when ADMIN tries to create a user with ADMIN role', async () => {
+    it('should throw UserHierarchyViolationError when ADMIN tries to create a user with ADMIN role', async () => {
       const adminUser = makeRequestingUser(UserRole.ADMIN);
       const command = makeCreateUserCommand({ role: UserRole.ADMIN });
 
       await expect(useCase.execute(adminUser, command)).rejects.toThrow(
-        new UserRoleHierarchyError(UserRole.ADMIN, UserRole.ADMIN),
+        new UserHierarchyViolationError(
+          'create',
+          UserRole.ADMIN,
+          UserRole.ADMIN,
+        ),
       );
 
       expect(userRepository.existByUsername).not.toHaveBeenCalled();
@@ -152,12 +156,12 @@ describe('CreateUserUseCase', () => {
       expect(userRepository.save).not.toHaveBeenCalled();
     });
 
-    it('should throw UserRoleHierarchyError when HR tries to create a user with HR role', async () => {
+    it('should throw UserHierarchyViolationError when HR tries to create a user with HR role', async () => {
       const hrUser = makeRequestingUser(UserRole.HR);
       const command = makeCreateUserCommand({ role: UserRole.HR });
 
       await expect(useCase.execute(hrUser, command)).rejects.toThrow(
-        new UserRoleHierarchyError(UserRole.HR, UserRole.HR),
+        new UserHierarchyViolationError('create', UserRole.HR, UserRole.HR),
       );
 
       expect(userRepository.existByUsername).not.toHaveBeenCalled();

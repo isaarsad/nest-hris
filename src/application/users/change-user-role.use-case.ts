@@ -46,10 +46,18 @@ export class ChangeUserRoleUseCase {
 
     if (requestingUser.role !== UserRole.ROOT) {
       if (targetCurrentRank >= requesterRank) {
-        throw new UserHierarchyViolationError('change role');
+        throw new UserHierarchyViolationError(
+          'change role',
+          requestingUser.role,
+          user.role,
+        );
       }
       if (targetNewRank >= requesterRank) {
-        throw new UserHierarchyViolationError('change role');
+        throw new UserHierarchyViolationError(
+          'change role',
+          requestingUser.role,
+          command.newRole,
+        );
       }
     }
 

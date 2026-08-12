@@ -2,8 +2,8 @@ import { User } from '../../domain/users/entities/user.entity.js';
 import { UserRepository } from '../../domain/users/user.repository.js';
 import {
   UserAlreadyExistsError,
+  UserHierarchyViolationError,
   UserPermissionDeniedError,
-  UserRoleHierarchyError,
 } from '../../domain/users/errors/index.js';
 import {
   UserPermission,
@@ -38,7 +38,11 @@ export class CreateUserUseCase {
     const { username, email, passwordPlainText, role } = command;
 
     if (!requestingUser.canAssignRole(role)) {
-      throw new UserRoleHierarchyError(requestingUser.role, role);
+      throw new UserHierarchyViolationError(
+        'create',
+        requestingUser.role,
+        role,
+      );
     }
 
     const [isUsernameUsed, isEmailUsed] = await Promise.all([

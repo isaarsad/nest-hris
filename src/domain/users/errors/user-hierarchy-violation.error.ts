@@ -1,11 +1,19 @@
-import { InvariantError } from '../../shared/errors/base/invariant.error.js';
+import { ForbiddenError } from '../../shared/errors/base/forbidden.error.js';
+import { UserRole } from '../user-role-permissions.js';
 
-export class UserHierarchyViolationError extends InvariantError {
+export type HierarchyAction =
+  'create' | 'change role' | 'deactivate' | 'activate' | 'delete' | 'restore';
+
+export class UserHierarchyViolationError extends ForbiddenError {
   readonly code = 'USER_HIERARCHY_VIOLATION';
 
   constructor(
-    action: 'change role' | 'deactivate' | 'activate' | 'delete' | 'restore',
+    action: HierarchyAction,
+    requestingRole: UserRole,
+    targetRole: UserRole,
   ) {
-    super(`Cannot ${action} user because the role hierarchy is violated.`);
+    super(
+      `Role '${requestingRole}' is not allowed to ${action} user with role '${targetRole}' due to hierarchy restrictions.`,
+    );
   }
 }
