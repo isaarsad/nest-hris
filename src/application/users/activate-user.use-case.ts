@@ -4,11 +4,7 @@ import {
   UserPermissionDeniedError,
   UserHierarchyViolationError,
 } from '../../domain/users/errors/index.js';
-import {
-  ROLE_HIERARCHY,
-  UserPermission,
-  UserRole,
-} from '../../domain/users/user-role-permissions.js';
+import { UserPermission } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
 
 export class ActivateUserUseCase {
@@ -19,7 +15,7 @@ export class ActivateUserUseCase {
       UserPermission.ACTIVATE_USER,
     );
     if (!canUpdate) {
-      throw new UserPermissionDeniedError('update');
+      throw new UserPermissionDeniedError('activate');
     }
 
     const user = await this.userRepository.findById(userId);
@@ -27,13 +23,12 @@ export class ActivateUserUseCase {
       throw new UserNotFoundError(userId);
     }
 
-    const requesterRank = ROLE_HIERARCHY[requestingUser.role];
-    const targetCurrentRank = ROLE_HIERARCHY[user.role];
-
-    if (requestingUser.role !== UserRole.ROOT) {
-      if (targetCurrentRank >= requesterRank) {
-        throw new UserHierarchyViolationError('activate');
-      }
+    if (!requestingUser.isSuperiorTo(user.role)) {
+      throw new UserHierarchyViolationError(
+        'activate',
+        requestingUser.role,
+        user.role,
+      );
     }
 
     user.activate();

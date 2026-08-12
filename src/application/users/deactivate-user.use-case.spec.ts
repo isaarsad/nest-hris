@@ -6,6 +6,7 @@ import {
   UserPermissionDeniedError,
   UserHierarchyViolationError,
   SelfDeactivationNotAllowedError,
+  UserAlreadyInactiveError,
 } from '../../domain/users/errors/index.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
@@ -218,6 +219,27 @@ describe('DeactivateUserUseCase', () => {
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.any(User),
       );
+    });
+  });
+
+  // === ALREADY INACTIVE ===
+
+  describe('Already inactive check', () => {
+    it('should throw UserAlreadyInactiveError when target user is already inactive', async () => {
+      const requestingUser = makeRootUser();
+      const targetUser = makeUser({
+        role: UserRole.EMPLOYEE,
+        isActive: false,
+      });
+
+      vi.mocked(userRepository.findById).mockResolvedValue(targetUser);
+
+      await expect(
+        useCase.execute(requestingUser, targetUser.id),
+      ).rejects.toThrow(UserAlreadyInactiveError);
+
+      expect(userRepository.findById).toHaveBeenCalledWith(targetUser.id);
+      expect(userRepository.save).not.toHaveBeenCalled();
     });
   });
 

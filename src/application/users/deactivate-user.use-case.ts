@@ -5,11 +5,7 @@ import {
   UserHierarchyViolationError,
   SelfDeactivationNotAllowedError,
 } from '../../domain/users/errors/index.js';
-import {
-  ROLE_HIERARCHY,
-  UserPermission,
-  UserRole,
-} from '../../domain/users/user-role-permissions.js';
+import { UserPermission } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
 
 export class DeactivateUserUseCase {
@@ -20,7 +16,7 @@ export class DeactivateUserUseCase {
       UserPermission.DEACTIVATE_USER,
     );
     if (!canUpdate) {
-      throw new UserPermissionDeniedError('update');
+      throw new UserPermissionDeniedError('deactivate');
     }
 
     if (requestingUser.id === userId) {
@@ -32,13 +28,12 @@ export class DeactivateUserUseCase {
       throw new UserNotFoundError(userId);
     }
 
-    const requesterRank = ROLE_HIERARCHY[requestingUser.role];
-    const targetCurrentRank = ROLE_HIERARCHY[user.role];
-
-    if (requestingUser.role !== UserRole.ROOT) {
-      if (targetCurrentRank >= requesterRank) {
-        throw new UserHierarchyViolationError('deactivate');
-      }
+    if (!requestingUser.isSuperiorTo(user.role)) {
+      throw new UserHierarchyViolationError(
+        'deactivate',
+        requestingUser.role,
+        user.role,
+      );
     }
 
     user.deactivate();

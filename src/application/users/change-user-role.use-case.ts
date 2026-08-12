@@ -32,7 +32,7 @@ export class ChangeUserRoleUseCase {
       UserPermission.UPDATE_USER_ROLE,
     );
     if (!canUpdate) {
-      throw new UserPermissionDeniedError('update');
+      throw new UserPermissionDeniedError('change role');
     }
 
     const user = await this.userRepository.findById(command.userId);

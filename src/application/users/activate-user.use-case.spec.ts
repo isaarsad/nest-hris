@@ -5,6 +5,7 @@ import {
   UserNotFoundError,
   UserPermissionDeniedError,
   UserHierarchyViolationError,
+  UserAlreadyActiveError,
 } from '../../domain/users/errors/index.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
@@ -193,6 +194,27 @@ describe('ActivateUserUseCase', () => {
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.any(User),
       );
+    });
+  });
+
+  // === ALREADY ACTIVE ===
+
+  describe('Already active check', () => {
+    it('should throw UserAlreadyActiveError when target user is already active', async () => {
+      const requestingUser = makeRootUser();
+      const targetUser = makeUser({
+        role: UserRole.EMPLOYEE,
+        isActive: true,
+      });
+
+      vi.mocked(userRepository.findById).mockResolvedValue(targetUser);
+
+      await expect(
+        useCase.execute(requestingUser, targetUser.id),
+      ).rejects.toThrow(UserAlreadyActiveError);
+
+      expect(userRepository.findById).toHaveBeenCalledWith(targetUser.id);
+      expect(userRepository.save).not.toHaveBeenCalled();
     });
   });
 
