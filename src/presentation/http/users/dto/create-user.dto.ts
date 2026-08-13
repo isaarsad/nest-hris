@@ -6,9 +6,10 @@ import { createZodDto } from 'nestjs-zod';
 export const createUserSchema: z.ZodType<CreateUserCommand> = z.object({
   username: z
     .string({
-      message: 'Username is required and must be a text string',
+      message: 'Username must be a text string',
     })
     .trim()
+    .nonempty('Username is required')
     .min(5, 'Username must be at least 5 characters')
     .max(30, 'Username cannot exceed 30 characters')
     .regex(
@@ -22,9 +23,9 @@ export const createUserSchema: z.ZodType<CreateUserCommand> = z.object({
     .max(254, 'Email cannot exceed 254 characters'),
   passwordPlainText: z
     .string({
-      message: 'Password is required and must be a text string',
+      message: 'Password must be a text string',
     })
-    .min(1, 'Password is required')
+    .nonempty('Password is required')
     .min(8, 'Password must be at least 8 characters')
     .max(100, 'Password cannot exceed 100 characters'),
   role: z.enum(UserRole, {
