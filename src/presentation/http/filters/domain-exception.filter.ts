@@ -47,7 +47,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
         errors: zodError.issues.map((issue) => ({
           field: issue.path.join('.'),
-
+          code: issue.code,
           message: issue.message,
         })),
       };

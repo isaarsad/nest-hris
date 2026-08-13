@@ -96,8 +96,12 @@ describe('DomainExceptionFilter', () => {
     it('should format ZodValidationException to 400 BAD_REQUEST with mapped error fields', () => {
       const mockZodError = {
         issues: [
-          { path: ['name'], message: 'Name is required' },
-          { path: ['address', 'city'], message: 'Invalid city' },
+          { path: ['name'], code: 'invalid_type', message: 'Name is required' },
+          {
+            path: ['address', 'city'],
+            code: 'invalid_format',
+            message: 'Invalid city',
+          },
         ],
       } as ZodError;
 
@@ -110,8 +114,16 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.BAD_REQUEST,
         message: 'Validation failed',
         errors: [
-          { field: 'name', message: 'Name is required' },
-          { field: 'address.city', message: 'Invalid city' },
+          {
+            field: 'name',
+            code: 'invalid_type',
+            message: 'Name is required',
+          },
+          {
+            field: 'address.city',
+            code: 'invalid_format',
+            message: 'Invalid city',
+          },
         ],
         timestamp: expect.any(String),
       });
