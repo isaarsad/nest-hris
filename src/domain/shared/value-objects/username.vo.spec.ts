@@ -17,16 +17,15 @@ describe('Username', () => {
       expect(maxUsername.value).toBe('a'.repeat(30));
     });
 
-    it('should accept underscores, hyphens, numbers, and mixed case letters', () => {
+    it('should accept underscores, hyphens, numbers', () => {
       expect(new Username('john_doe').value).toBe('john_doe');
       expect(new Username('john-doe').value).toBe('john-doe');
-      expect(new Username('JohnDoe').value).toBe('JohnDoe');
       expect(new Username('12345').value).toBe('12345');
     });
 
-    it('should trim surrounding whitespace before storing', () => {
-      const username = new Username('  johndoe  ');
-      expect(username.value).toBe('johndoe');
+    it('should normalize uppercase letters to lowercase and trim surrounding whitespace', () => {
+      const username = new Username('  JohnDoe_123  ');
+      expect(username.value).toBe('johndoe_123');
     });
 
     // --- Invalid Inputs & Edge Cases ---
@@ -71,15 +70,15 @@ describe('Username', () => {
       expect(u1.equals(u2)).toBe(true);
     });
 
+    it('should return true when comparing usernames created with different casing', () => {
+      const u1 = new Username('JohnDoe');
+      const u2 = new Username('johndoe');
+      expect(u1.equals(u2)).toBe(true);
+    });
+
     it('should return false for two Username instances with different values', () => {
       const u1 = new Username('johndoe');
       const u2 = new Username('janedoe');
-      expect(u1.equals(u2)).toBe(false);
-    });
-
-    it('should be case-sensitive', () => {
-      const u1 = new Username('JohnDoe');
-      const u2 = new Username('johndoe');
       expect(u1.equals(u2)).toBe(false);
     });
 

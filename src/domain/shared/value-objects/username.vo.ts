@@ -4,22 +4,26 @@ export class Username {
   private readonly _value: string;
 
   constructor(value: string) {
-    if (!Username.isValid(value)) {
+    if (typeof value !== 'string') {
       throw new InvalidUsernameError(value);
     }
-    this._value = value.trim();
+
+    const normalizedUsername = value.trim().toLowerCase();
+
+    if (!Username.isValid(normalizedUsername)) {
+      throw new InvalidUsernameError(value);
+    }
+
+    this._value = normalizedUsername;
   }
 
   get value(): string {
     return this._value;
   }
 
-  private static isValid(username: string): boolean {
-    if (typeof username !== 'string') return false;
-    const usernameTrim = username.trim();
-
-    const usernameRegex = /^[a-zA-Z0-9_-]{5,30}$/;
-    return usernameRegex.test(usernameTrim);
+  private static isValid(normalizedUsername: string): boolean {
+    const usernameRegex = /^[a-z0-9_-]{5,30}$/;
+    return usernameRegex.test(normalizedUsername);
   }
 
   public equals(other?: Username | null): boolean {
