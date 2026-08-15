@@ -4,6 +4,7 @@ import {
   UserNotFoundError,
   UserPermissionDeniedError,
   UserHierarchyViolationError,
+  SelfRoleChangeNotAllowedError,
 } from '../../domain/users/errors/index.js';
 import {
   ROLE_HIERARCHY,
@@ -33,6 +34,10 @@ export class ChangeUserRoleUseCase {
     );
     if (!canUpdate) {
       throw new UserPermissionDeniedError('change role');
+    }
+
+    if (requestingUser.id === command.userId) {
+      throw new SelfRoleChangeNotAllowedError();
     }
 
     const user = await this.userRepository.findById(command.userId);

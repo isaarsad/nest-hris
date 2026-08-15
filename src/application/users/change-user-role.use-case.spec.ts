@@ -9,6 +9,7 @@ import {
   UserNotFoundError,
   UserPermissionDeniedError,
   UserHierarchyViolationError,
+  SelfRoleChangeNotAllowedError,
 } from '../../domain/users/errors/index.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
@@ -152,6 +153,35 @@ describe('ChangeUserRoleUseCase', () => {
         expect.any(User),
       );
     });
+  });
+
+  // === SELF-ROLE CHANGE CHECK ===
+
+  describe('Self-role change check', () => {
+    it.each([
+      { role: UserRole.ROOT, makeRequesterFn: makeRootUser, id: 'user-root' },
+      {
+        role: UserRole.ADMIN,
+        makeRequesterFn: makeAdminUser,
+        id: 'user-admin',
+      },
+    ])(
+      'should throw SelfRoleChangeNotAllowedError when $role tries to change their own role',
+      async ({ makeRequesterFn, id }) => {
+        const requestingUser = makeRequesterFn();
+        const command = makeChangeUserRoleCommand({
+          userId: id,
+          newRole: UserRole.EMPLOYEE,
+        });
+
+        await expect(useCase.execute(requestingUser, command)).rejects.toThrow(
+          SelfRoleChangeNotAllowedError,
+        );
+
+        expect(userRepository.findById).not.toHaveBeenCalled();
+        expect(userRepository.save).not.toHaveBeenCalled();
+      },
+    );
   });
 
   // === USER NOT FOUND ===
