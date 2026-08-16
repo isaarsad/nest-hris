@@ -1,4 +1,4 @@
-import { NotFoundError } from '../../shared/errors/not-found.error.js';
+import { NotFoundError } from '../../shared/errors/base/not-found.error.js';
 
 export class DepartmentNotFoundError extends NotFoundError {
   readonly code = 'DEPARTMENT_NOT_FOUND';

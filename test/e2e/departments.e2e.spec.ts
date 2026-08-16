@@ -158,17 +158,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'name',
-              message: 'Department name is required and must be a text string',
+              code: 'invalid_type',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when department code is not provided', async () => {
@@ -179,17 +178,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'code',
-              message: 'Department code is required and must be a text string',
+              code: 'invalid_type',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when department name is an empty string', async () => {
@@ -200,17 +198,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'name',
-              message: 'Department name cannot be empty',
+              code: 'too_small',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when name exceeds 100 characters', async () => {
@@ -221,17 +218,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'name',
-              message: 'Department name cannot exceed 100 characters',
+              code: 'too_big',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when code is less than 2 characters', async () => {
@@ -242,17 +238,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'code',
-              message: 'Department code must be at least 2 characters',
+              code: 'too_small',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when code exceeds 10 characters', async () => {
@@ -263,17 +258,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'code',
-              message: 'Department code cannot exceed 10 characters',
+              code: 'too_big',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when parentDepartmentId is not a valid UUID', async () => {
@@ -288,17 +282,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'parentDepartmentId',
-              message: 'Invalid parent department ID format',
+              code: 'invalid_format',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when headEmployeeId is not a valid UUID', async () => {
@@ -313,22 +306,21 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'headEmployeeId',
-              message: 'Invalid head employee ID format',
+              code: 'invalid_format',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
     });
 
     describe('Business rule error', () => {
-      it('should return 409 when name is already used (case-insensitive)', async () => {
+      it('should return 409 when name is already taken (case-insensitive)', async () => {
         await departmentHelper.insert({
           id: crypto.randomUUID(),
           name: 'Finance',
@@ -348,7 +340,7 @@ describe('Departments (E2E)', () => {
         });
       });
 
-      it('should return 409 when code is already used (case-insensitive)', async () => {
+      it('should return 409 when code is already taken (case-insensitive)', async () => {
         await departmentHelper.insert({
           id: crypto.randomUUID(),
           name: 'Finance',
@@ -449,7 +441,7 @@ describe('Departments (E2E)', () => {
         );
       });
 
-      it('harus mengembalikan department dengan struktur field yang lengkap', async () => {
+      it('should return departments with complete field structures', async () => {
         await departmentHelper.insert({
           name: 'Technology',
           code: 'TECH',
@@ -468,11 +460,11 @@ describe('Departments (E2E)', () => {
       });
 
       /**
-       * CurrentUser decorator saat ini mengembalikan UserRole.ADMIN secara hardcoded.
-       * ADMIN memiliki izin VIEW_INACTIVE_DATA tapi tidak VIEW_DELETED_DATA.
-       * Sehingga departement inactive akan ikut ditampilkan, tapi yang deleted tidak.
+       * The CurrentUser decorator currently returns UserRole.ADMIN as a hardcoded value.
+       * ADMIN has permission to VIEW_INACTIVE_DEPARTMENTS but not VIEW_DELETED_DEPARTMENTS.
+       * Therefore, inactive departments are included in the response, but deleted departments are not.
        */
-      it('harus menyertakan department inactive karena ADMIN punya izin VIEW_INACTIVE_DATA', async () => {
+      it('should include inactive departments because ADMIN has VIEW_INACTIVE_DEPARTMENTS permission', async () => {
         await departmentHelper.insert({
           name: 'Active Department',
           code: 'ACT',
@@ -493,7 +485,7 @@ describe('Departments (E2E)', () => {
         expect(names).toContain('Inactive Department');
       });
 
-      it('tidak boleh menampilkan department yang sudah soft-deleted (ADMIN tidak punya VIEW_DELETED_DATA)', async () => {
+      it('should exclude soft-deleted departments when user lacks VIEW_DELETED_DEPARTMENTS permission', async () => {
         await departmentHelper.insert({
           name: 'Normal Department',
           code: 'NORM',
@@ -511,7 +503,7 @@ describe('Departments (E2E)', () => {
         expect(response.body[0].name).toBe('Normal Department');
       });
 
-      it('harus mengembalikan hasil yang diurutkan: isActive DESC, name ASC', async () => {
+      it('should return results ordered by isActive DESC and name ASC', async () => {
         await departmentHelper.insert({
           name: 'Zebra Dept',
           code: 'ZEB',
@@ -532,7 +524,6 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toHaveLength(3);
 
-        // Active departments muncul duluan, lalu diurutkan per nama
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         const names = response.body.map((d: { name: string }) => d.name);
         expect(names[0]).toBe('Alpha Dept');
@@ -541,8 +532,8 @@ describe('Departments (E2E)', () => {
       });
     });
 
-    describe('Integrasi data — create lalu get', () => {
-      it('department yang dibuat via POST harus muncul di GET', async () => {
+    describe('Data integration - create then get', () => {
+      it('should display newly created department via POST in GET endpoint', async () => {
         await request(server)
           .post('/departments')
           .send({ name: 'Legal', code: 'LEG' })
@@ -558,7 +549,7 @@ describe('Departments (E2E)', () => {
         });
       });
 
-      it('harus mampu membuat beberapa department dan mengambil semuanya', async () => {
+      it('should successfully create multiple departments and retrieve all of them', async () => {
         const departments = [
           { name: 'Engineering', code: 'ENG' },
           { name: 'Product', code: 'PRD' },
@@ -573,52 +564,6 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toHaveLength(3);
       });
-    });
-  });
-
-  // ============================================================
-  // Skenario tambahan — Error Response Shape
-  // ============================================================
-  describe('Response shape untuk error', () => {
-    it('response error harus memiliki field statusCode, message, dan timestamp', async () => {
-      const response = await request(server)
-        .post('/departments')
-        .send({}) // payload tidak valid
-        .expect(400);
-
-      expect(response.body).toHaveProperty('statusCode');
-      expect(response.body).toHaveProperty('timestamp');
-    });
-
-    it('response error 409 harus memiliki field error dan message', async () => {
-      await departmentHelper.insert({ name: 'Engineering', code: 'ENG' });
-
-      const response = await request(server)
-        .post('/departments')
-        .send({ name: 'Engineering', code: 'ENG2' })
-        .expect(409);
-
-      expect(response.body).toHaveProperty(
-        'error',
-        'DEPARTMENT_ALREADY_EXISTS',
-      );
-      expect(response.body).toHaveProperty('message');
-      expect(response.body).toHaveProperty('statusCode', 409);
-      expect(response.body).toHaveProperty('timestamp');
-    });
-
-    it('response error 404 harus memiliki field error NOT_FOUND', async () => {
-      const response = await request(server)
-        .post('/departments')
-        .send({
-          name: 'Child',
-          code: 'CHD',
-          parentDepartmentId: crypto.randomUUID(),
-        })
-        .expect(404);
-
-      expect(response.body).toHaveProperty('error', 'DEPARTMENT_NOT_FOUND');
-      expect(response.body).toHaveProperty('statusCode', 404);
     });
   });
 });

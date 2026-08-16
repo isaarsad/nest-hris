@@ -1,4 +1,4 @@
-import { ForbiddenError } from '../../shared/errors/forbidden.error.js';
+import { ForbiddenError } from '../../shared/errors/base/forbidden.error.js';
 
 export class DepartmentPermissionDeniedError extends ForbiddenError {
   readonly code = 'DEPARTMENT_PERMISSION_DENIED';

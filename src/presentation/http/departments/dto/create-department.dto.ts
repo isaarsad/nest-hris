@@ -6,16 +6,18 @@ export const createDepartmentSchema: z.ZodType<CreateDepartmentInput> =
   z.object({
     name: z
       .string({
-        message: 'Department name is required and must be a text string',
+        message: 'Department name must be a text string',
       })
       .trim()
-      .min(1, 'Department name cannot be empty')
+      .nonempty('Department name is required')
+      .min(3, 'Department name must be at least 3 characters')
       .max(100, 'Department name cannot exceed 100 characters'),
     code: z
       .string({
-        message: 'Department code is required and must be a text string',
+        message: 'Department code must be a text string',
       })
       .trim()
+      .nonempty('Department code is required')
       .toUpperCase()
       .min(2, 'Department code must be at least 2 characters')
       .max(10, 'Department code cannot exceed 10 characters'),

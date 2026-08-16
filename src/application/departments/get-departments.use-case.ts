@@ -8,10 +8,10 @@ export class GetDepartmentsUseCase {
 
   async execute(requestingUser: RequestingUser): Promise<Department[]> {
     const includeInactive = requestingUser.hasPermission(
-      UserPermission.VIEW_INACTIVE_DATA,
+      UserPermission.VIEW_INACTIVE_DEPARTMENTS,
     );
     const includeDeleted = requestingUser.hasPermission(
-      UserPermission.VIEW_DELETED_DATA,
+      UserPermission.VIEW_DELETED_DEPARTMENTS,
     );
 
     const departments = await this.departmentRepository.findAll({

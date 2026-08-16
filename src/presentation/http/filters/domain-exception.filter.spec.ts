@@ -4,11 +4,11 @@ import { DomainExceptionFilter } from './domain-exception.filter.js';
 import {
   DomainError,
   DomainErrorCategory,
-} from '../../../domain/shared/errors/domain.error.js';
-import { NotFoundError } from '../../../domain/shared/errors/not-found.error.js';
-import { ConflictError } from '../../../domain/shared/errors/conflict.error.js';
-import { InvariantError } from '../../../domain/shared/errors/invariant.error.js';
-import { ForbiddenError } from '../../../domain/shared/errors/forbidden.error.js';
+} from '../../../domain/shared/errors/base/domain.error.js';
+import { NotFoundError } from '../../../domain/shared/errors/base/not-found.error.js';
+import { ConflictError } from '../../../domain/shared/errors/base/conflict.error.js';
+import { InvariantError } from '../../../domain/shared/errors/base/invariant.error.js';
+import { ForbiddenError } from '../../../domain/shared/errors/base/forbidden.error.js';
 import { ZodValidationException } from 'nestjs-zod';
 import { ZodError } from 'zod';
 
@@ -96,8 +96,12 @@ describe('DomainExceptionFilter', () => {
     it('should format ZodValidationException to 400 BAD_REQUEST with mapped error fields', () => {
       const mockZodError = {
         issues: [
-          { path: ['name'], message: 'Name is required' },
-          { path: ['address', 'city'], message: 'Invalid city' },
+          { path: ['name'], code: 'invalid_type', message: 'Name is required' },
+          {
+            path: ['address', 'city'],
+            code: 'invalid_format',
+            message: 'Invalid city',
+          },
         ],
       } as ZodError;
 
@@ -110,8 +114,16 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.BAD_REQUEST,
         message: 'Validation failed',
         errors: [
-          { field: 'name', message: 'Name is required' },
-          { field: 'address.city', message: 'Invalid city' },
+          {
+            field: 'name',
+            code: 'invalid_type',
+            message: 'Name is required',
+          },
+          {
+            field: 'address.city',
+            code: 'invalid_format',
+            message: 'Invalid city',
+          },
         ],
         timestamp: expect.any(String),
       });

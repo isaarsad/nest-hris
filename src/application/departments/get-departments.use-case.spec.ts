@@ -104,7 +104,7 @@ describe('GetDepartmentsUseCase', () => {
     });
   });
 
-  // ── Permission: HR (VIEW_INACTIVE_DATA only) ──────────────────────────────────
+  // ── Permission: HR (VIEW_INACTIVE_DEPARTMENTS only) ──────────────────────────────────
 
   describe('execute - HR role', () => {
     it('should call findAll with includeInactive=true and includeDeleted=false', async () => {
@@ -119,7 +119,7 @@ describe('GetDepartmentsUseCase', () => {
     });
   });
 
-  // ── Permission: ADMIN (VIEW_INACTIVE_DATA only) ───────────────────────────────
+  // ── Permission: ADMIN (VIEW_INACTIVE_DEPARTMENTS only) ───────────────────────────────
 
   describe('execute - ADMIN role', () => {
     it('should call findAll with includeInactive=true and includeDeleted=false', async () => {
@@ -134,7 +134,7 @@ describe('GetDepartmentsUseCase', () => {
     });
   });
 
-  // ── Permission: ROOT (VIEW_INACTIVE_DATA + VIEW_DELETED_DATA) ─────────────────
+  // ── Permission: ROOT (VIEW_INACTIVE_DEPARTMENTS + VIEW_DELETED_DEPARTMENTS) ─────────────────
 
   describe('execute - ROOT role', () => {
     it('should call findAll with includeInactive=true and includeDeleted=true', async () => {
