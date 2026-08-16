@@ -60,4 +60,23 @@ export class UserTableTestHelper {
 
     return rows[0] || null;
   }
+
+  async findByUsernameRaw(username: string): Promise<UserOrmEntity | null> {
+    const rows = await this.dataSource.query<UserOrmEntity[]>(
+      `SELECT
+        id,
+        username,
+        email,
+        password_hash AS "passwordHash",
+        role,
+        is_active AS "isActive",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt",
+        deleted_at AS "deletedAt"
+      FROM users WHERE username = $1`,
+      [username],
+    );
+
+    return rows[0] || null;
+  }
 }

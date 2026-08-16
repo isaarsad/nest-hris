@@ -10,7 +10,7 @@ Content-Type: application/json
 
 @baseUrl = http://localhost:3000
 # Ganti userId ini pake UUID asli dari database / hasil response POST /users
-@userId = d39c3aba-7687-43be-96cb-305938967293
+@userId = 892ac592-b017-4660-be6f-4dd881dfb0fe
 
 ### 1. Create User (Lulus Zod DTO Validation)
 POST {{baseUrl}}/users

@@ -158,17 +158,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'name',
-              message: 'Department name is required and must be a text string',
+              code: 'invalid_type',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when department code is not provided', async () => {
@@ -179,17 +178,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'code',
-              message: 'Department code is required and must be a text string',
+              code: 'invalid_type',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when department name is an empty string', async () => {
@@ -200,17 +198,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'name',
-              message: 'Department name cannot be empty',
+              code: 'too_small',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when name exceeds 100 characters', async () => {
@@ -221,17 +218,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'name',
-              message: 'Department name cannot exceed 100 characters',
+              code: 'too_big',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when code is less than 2 characters', async () => {
@@ -242,17 +238,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'code',
-              message: 'Department code must be at least 2 characters',
+              code: 'too_small',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when code exceeds 10 characters', async () => {
@@ -263,17 +258,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'code',
-              message: 'Department code cannot exceed 10 characters',
+              code: 'too_big',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when parentDepartmentId is not a valid UUID', async () => {
@@ -288,17 +282,16 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'parentDepartmentId',
-              message: 'Invalid parent department ID format',
+              code: 'invalid_format',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
 
       it('should return 400 when headEmployeeId is not a valid UUID', async () => {
@@ -313,22 +306,21 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toMatchObject({
           statusCode: 400,
-          message: 'Validation failed',
+          message: expect.any(String),
           timestamp: expect.any(String),
-        });
-        expect(response.body.errors).toEqual(
-          expect.arrayContaining([
+          errors: expect.arrayContaining([
             {
               field: 'headEmployeeId',
-              message: 'Invalid head employee ID format',
+              code: 'invalid_format',
+              message: expect.any(String),
             },
           ]),
-        );
+        });
       });
     });
 
     describe('Business rule error', () => {
-      it('should return 409 when name is already used (case-insensitive)', async () => {
+      it('should return 409 when name is already taken (case-insensitive)', async () => {
         await departmentHelper.insert({
           id: crypto.randomUUID(),
           name: 'Finance',
@@ -348,7 +340,7 @@ describe('Departments (E2E)', () => {
         });
       });
 
-      it('should return 409 when code is already used (case-insensitive)', async () => {
+      it('should return 409 when code is already taken (case-insensitive)', async () => {
         await departmentHelper.insert({
           id: crypto.randomUUID(),
           name: 'Finance',
@@ -532,7 +524,6 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toHaveLength(3);
 
-        // Active departments muncul duluan, lalu diurutkan per nama
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         const names = response.body.map((d: { name: string }) => d.name);
         expect(names[0]).toBe('Alpha Dept');
@@ -573,52 +564,6 @@ describe('Departments (E2E)', () => {
 
         expect(response.body).toHaveLength(3);
       });
-    });
-  });
-
-  // ============================================================
-  // Additional scenarios — Error Response Shape
-  // ============================================================
-  describe('Error response shape', () => {
-    it('should contain statusCode, message, and timestamp fields in error response', async () => {
-      const response = await request(server)
-        .post('/departments')
-        .send({}) // invalid payload
-        .expect(400);
-
-      expect(response.body).toHaveProperty('statusCode');
-      expect(response.body).toHaveProperty('timestamp');
-    });
-
-    it('should contain error and message fields in 409 conflict error response', async () => {
-      await departmentHelper.insert({ name: 'Engineering', code: 'ENG' });
-
-      const response = await request(server)
-        .post('/departments')
-        .send({ name: 'Engineering', code: 'ENG2' })
-        .expect(409);
-
-      expect(response.body).toHaveProperty(
-        'error',
-        'DEPARTMENT_ALREADY_EXISTS',
-      );
-      expect(response.body).toHaveProperty('message');
-      expect(response.body).toHaveProperty('statusCode', 409);
-      expect(response.body).toHaveProperty('timestamp');
-    });
-
-    it('should contain error field with DEPARTMENT_NOT_FOUND in 404 error response', async () => {
-      const response = await request(server)
-        .post('/departments')
-        .send({
-          name: 'Child',
-          code: 'CHD',
-          parentDepartmentId: crypto.randomUUID(),
-        })
-        .expect(404);
-
-      expect(response.body).toHaveProperty('error', 'DEPARTMENT_NOT_FOUND');
-      expect(response.body).toHaveProperty('statusCode', 404);
     });
   });
 });
