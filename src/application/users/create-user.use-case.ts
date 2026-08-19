@@ -10,7 +10,7 @@ import {
   UserRole,
 } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
-import { PasswordHasher } from '../../domain/shared/ports/password-hasher.port.js';
+import { PasswordHasher } from '../../domain/users/ports/password-hasher.port.js';
 
 export interface CreateUserCommand {
   username: string;

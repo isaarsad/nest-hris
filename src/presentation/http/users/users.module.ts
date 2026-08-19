@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 
 // Domain Layer (Abstract Class / Interface Repository)
 import { UserRepository } from '../../../domain/users/user.repository.js';
-import { PasswordHasher } from '../../../domain/shared/ports/password-hasher.port.js';
+import { PasswordHasher } from '../../../domain/users/ports/password-hasher.port.js';
 
 // Application Layer (Use Cases)
 import { CreateUserUseCase } from '../../../application/users/create-user.use-case.js';

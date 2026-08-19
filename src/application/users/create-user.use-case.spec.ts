@@ -17,7 +17,7 @@ import {
   Email,
   PasswordHash,
 } from '../../domain/shared/value-objects/index.js';
-import { PasswordHasher } from '../../domain/shared/ports/password-hasher.port.js';
+import { PasswordHasher } from '../../domain/users/ports/password-hasher.port.js';
 
 // ─── Mock helpers ────────────────────────────────────────────────────────────
 
