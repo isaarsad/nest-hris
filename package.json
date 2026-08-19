@@ -17,8 +17,6 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:cov": "vitest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "tsx ./node_modules/typeorm/cli.js",
     "migration:create": "tsx ./node_modules/typeorm/cli.js migration:create",
     "migration:generate": "npm run typeorm -- -d src/infrastructure/database/data-source.ts migration:generate",

@@ -12,6 +12,7 @@ export default defineConfig({
         'src/domain/shared/errors/**',
         'src/domain/departments/errors/**',
         'src/domain/users/errors/**',
+        'src/domain/auth/errors/**',
         'src/infrastructure/database/entities/**',
         'src/infrastructure/database/data-source.ts',
         'src/infrastructure/config/**',
