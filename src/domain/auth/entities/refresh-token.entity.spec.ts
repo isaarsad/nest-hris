@@ -107,28 +107,7 @@ describe('RefreshToken entity', () => {
 
   // === isExpired() ===
 
-  it('should return false when token is not expired', () => {
-    const token = buildToken({
-      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
-    });
-    expect(token.isExpired()).toBe(false);
-  });
-
-  it('should return true when token is expired', () => {
-    const token = buildToken({
-      createdAt: new Date('1999-01-01T00:00:00.000Z'),
-      expiresAt: new Date('2000-01-01T00:00:00.000Z'),
-    });
-    expect(token.isExpired()).toBe(true);
-  });
-
-  it('should return true when now equals expiresAt (boundary)', () => {
-    const expiresAt = new Date('2024-06-01T00:00:00.000Z');
-    const token = buildToken({ expiresAt });
-    expect(token.isExpired(expiresAt)).toBe(true);
-  });
-
-  it('should use the provided now date for expiry check', () => {
+  it('should correctly evaluate expiration based on the provided date', () => {
     const expiresAt = new Date('2024-06-01T00:00:00.000Z');
     const token = buildToken({ expiresAt });
 
@@ -136,7 +115,16 @@ describe('RefreshToken entity', () => {
     const afterExpiry = new Date('2024-06-01T00:00:00.001Z');
 
     expect(token.isExpired(beforeExpiry)).toBe(false);
+    expect(token.isExpired(expiresAt)).toBe(true); // Boundary: now === expiresAt
     expect(token.isExpired(afterExpiry)).toBe(true);
+  });
+
+  it('should default to current time when no date is provided', () => {
+    const pastToken = buildToken({ expiresAt: new Date(Date.now() - 1000) });
+    const futureToken = buildToken({ expiresAt: new Date(Date.now() + 1000) });
+
+    expect(pastToken.isExpired()).toBe(true);
+    expect(futureToken.isExpired()).toBe(false);
   });
 
   // === isRevoked() ===
@@ -155,8 +143,9 @@ describe('RefreshToken entity', () => {
 
   // === isValid() ===
 
-  it('should return true when token is neither expired nor revoked', () => {
+  it('should return true when token is active and not revoked', () => {
     const token = buildToken({
+      revokedAt: null,
       expiresAt: new Date('2099-01-01T00:00:00.000Z'),
     });
     expect(token.isValid()).toBe(true);
@@ -173,6 +162,7 @@ describe('RefreshToken entity', () => {
   it('should return false when token is revoked', () => {
     const token = buildToken({
       revokedAt: new Date('2024-06-01T00:00:00.000Z'),
+      expiresAt: new Date(Date.now() + 1000),
     });
     expect(token.isValid()).toBe(false);
   });
@@ -189,21 +179,22 @@ describe('RefreshToken entity', () => {
   it('should use the provided now date for validity check', () => {
     const expiresAt = new Date('2024-06-01T00:00:00.000Z');
     const token = buildToken({ expiresAt });
-
     const beforeExpiry = new Date('2024-05-31T23:59:59.999Z');
+
     expect(token.isValid(beforeExpiry)).toBe(true);
     expect(token.isValid(expiresAt)).toBe(false);
   });
 
   // === revoke() ===
 
-  it('should revoke a non-revoked token', () => {
+  it('should revoke a token without replacement', () => {
     const token = buildToken({ revokedAt: null });
 
     token.revoke();
 
     expect(token.isRevoked()).toBe(true);
     expect(token.revokedAt).toBeInstanceOf(Date);
+    expect(token.replacedByTokenId).toBeNull();
   });
 
   it('should set replacedByTokenId when provided to revoke()', () => {
@@ -222,21 +213,17 @@ describe('RefreshToken entity', () => {
     expect(token.replacedByTokenId).toBe('token-new');
   });
 
-  it('should leave replacedByTokenId as null when revoke() is called without argument', () => {
-    const token = buildToken({ revokedAt: null });
-
-    token.revoke();
-
-    expect(token.replacedByTokenId).toBeNull();
-  });
-
   it('should be idempotent: calling revoke() on an already-revoked token does nothing', () => {
     const originalRevokedAt = new Date('2024-06-01T00:00:00.000Z');
-    const token = buildToken({ revokedAt: originalRevokedAt });
+    const token = buildToken({
+      revokedAt: originalRevokedAt,
+      replacedByTokenId: 'original-token-id',
+    });
 
-    token.revoke();
+    token.revoke('new-attempted-token-id');
 
     expect(token.revokedAt).toEqual(originalRevokedAt);
+    expect(token.replacedByTokenId).toBe('original-token-id');
   });
 
   // === wasReusedAfterRevocation() ===
