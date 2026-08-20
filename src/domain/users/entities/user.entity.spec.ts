@@ -101,6 +101,25 @@ describe('User entity', () => {
     expect(user.createdAt.getTime()).toBe(user.updatedAt.getTime());
   });
 
+  // === isDeleted() ===
+
+  describe('isDeleted()', () => {
+    it('should return false when user is not deleted', () => {
+      const user = buildUser({ deletedAt: null });
+
+      expect(user.isDeleted()).toBe(false);
+    });
+
+    it('should return true when user has deletedAt timestamp', () => {
+      const user = buildUser({
+        isActive: false,
+        deletedAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+
+      expect(user.isDeleted()).toBe(true);
+    });
+  });
+
   // === changeRole() ===
 
   it('should change the role of an active user', () => {

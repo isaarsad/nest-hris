@@ -95,6 +95,10 @@ export class User {
     });
   }
 
+  isDeleted(): boolean {
+    return this._deletedAt !== null;
+  }
+
   changeRole(newRole: UserRole): void {
     this.ensureNotDeleted();
     if (this._role === newRole) {
@@ -148,7 +152,7 @@ export class User {
   }
 
   private ensureNotDeleted(): void {
-    if (this._deletedAt !== null) {
+    if (this.isDeleted()) {
       throw new UserAlreadyDeletedError(this._username.value, this.id);
     }
   }
