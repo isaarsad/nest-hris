@@ -9,6 +9,7 @@ import { UserOrmEntity } from '../database/entities/user.orm-entity.js';
 import { FindOptionsWhere, QueryFailedError, Repository } from 'typeorm';
 import { UserMapper } from '../mappers/user.mapper.js';
 import { UserAlreadyExistsError } from '../../domain/users/errors/user-already-exist.error.js';
+import { Email, Username } from '../../domain/shared/value-objects/index.js';
 
 @Injectable()
 export class TypeOrmUserRepository implements UserRepository {
@@ -49,13 +50,15 @@ export class TypeOrmUserRepository implements UserRepository {
     return record ? UserMapper.toDomain(record) : null;
   }
 
-  async findByUsername(username: string): Promise<User | null> {
-    const record = await this.userRepository.findOneBy({ username });
+  async findByUsername(username: Username): Promise<User | null> {
+    const record = await this.userRepository.findOneBy({
+      username: username.value,
+    });
     return record ? UserMapper.toDomain(record) : null;
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    const record = await this.userRepository.findOneBy({ email });
+  async findByEmail(email: Email): Promise<User | null> {
+    const record = await this.userRepository.findOneBy({ email: email.value });
     return record ? UserMapper.toDomain(record) : null;
   }
 

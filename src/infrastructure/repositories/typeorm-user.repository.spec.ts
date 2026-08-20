@@ -225,7 +225,9 @@ describe('TypeOrmUserRepository', () => {
         email: 'target@example.com',
       });
 
-      const result = await repository.findByUsername('targetuser');
+      const result = await repository.findByUsername(
+        new Username('targetuser'),
+      );
 
       expect(result).toBeInstanceOf(User);
       expect(result).not.toBeNull();
@@ -234,7 +236,7 @@ describe('TypeOrmUserRepository', () => {
     });
 
     it('should return null when username does not exist', async () => {
-      const result = await repository.findByUsername('ghostuser');
+      const result = await repository.findByUsername(new Username('ghostuser'));
       expect(result).toBeNull();
     });
   });
@@ -248,7 +250,9 @@ describe('TypeOrmUserRepository', () => {
         email: 'emailuser@example.com',
       });
 
-      const result = await repository.findByEmail('emailuser@example.com');
+      const result = await repository.findByEmail(
+        new Email('emailuser@example.com'),
+      );
 
       expect(result).toBeInstanceOf(User);
       expect(result).not.toBeNull();
@@ -257,7 +261,9 @@ describe('TypeOrmUserRepository', () => {
     });
 
     it('should return null when email does not exist', async () => {
-      const result = await repository.findByEmail('ghost@example.com');
+      const result = await repository.findByEmail(
+        new Email('ghost@example.com'),
+      );
       expect(result).toBeNull();
     });
   });
