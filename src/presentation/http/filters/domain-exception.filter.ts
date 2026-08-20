@@ -19,7 +19,7 @@ export const STATUS_MAP: Record<DomainErrorCategory, HttpStatus> = {
   INVARIANT: HttpStatus.BAD_REQUEST,
   CONFLICT: HttpStatus.CONFLICT,
   FORBIDDEN: HttpStatus.FORBIDDEN,
-  // auth
+  UNAUTHORIZED: HttpStatus.UNAUTHORIZED,
 };
 
 @Catch()

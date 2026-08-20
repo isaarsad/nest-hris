@@ -11,6 +11,7 @@ import { InvariantError } from '../../../domain/shared/errors/base/invariant.err
 import { ForbiddenError } from '../../../domain/shared/errors/base/forbidden.error.js';
 import { ZodValidationException } from 'nestjs-zod';
 import { ZodError } from 'zod';
+import { UnauthorizedError } from '../../../domain/shared/errors/base/unauthorized.error.js';
 
 // ─── Dummy Classes for Testing ──────────────────────────────────────────────
 
@@ -42,6 +43,14 @@ class TestForbiddenError extends ForbiddenError {
   readonly code = 'TEST_FORBIDDEN';
 
   constructor(msg = 'Forbidden access') {
+    super(msg);
+  }
+}
+
+class TestUnauthorizedError extends UnauthorizedError {
+  readonly code = 'TEST_UNAUTHORIZED';
+
+  constructor(msg = 'Unauthorized access') {
     super(msg);
   }
 }
@@ -222,6 +231,20 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.FORBIDDEN,
         error: 'TEST_FORBIDDEN',
         message: 'Access denied',
+        timestamp: expect.any(String),
+      });
+    });
+
+    it('should map UNAUTHORIZED domain error to 401', () => {
+      const exception = new TestUnauthorizedError('Unauthorized access');
+
+      filter.catch(exception, makeHost());
+
+      expect(makeStatusMock).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(makeJsonMock).toHaveBeenCalledWith({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        error: 'TEST_UNAUTHORIZED',
+        message: 'Unauthorized access',
         timestamp: expect.any(String),
       });
     });
