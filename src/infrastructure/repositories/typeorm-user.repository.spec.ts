@@ -54,7 +54,7 @@ describe('TypeOrmUserRepository', () => {
         id: randomUUID(),
         username: 'johndoe',
         email: 'john@example.com',
-        passwordHash: '$2b$10$hashedpassword',
+        passwordHash: new PasswordHash('$2b$10$hashedpassword'),
         role: UserRole.EMPLOYEE,
       });
 
@@ -148,7 +148,7 @@ describe('TypeOrmUserRepository', () => {
         id: randomUUID(),
         username: 'duplicate',
         email: 'another@example.com',
-        passwordHash: '$2b$10$hashedpassword',
+        passwordHash: new PasswordHash('$2b$10$hashedpassword'),
         role: UserRole.EMPLOYEE,
       });
 
@@ -170,7 +170,7 @@ describe('TypeOrmUserRepository', () => {
         id: randomUUID(),
         username: 'seconduser',
         email: 'shared@example.com',
-        passwordHash: '$2b$10$hashedpassword',
+        passwordHash: new PasswordHash('$2b$10$hashedpassword'),
         role: UserRole.EMPLOYEE,
       });
 

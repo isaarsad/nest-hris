@@ -32,7 +32,7 @@ const makeRepository = (): UserRepository => ({
   existByEmail: vi.fn().mockResolvedValue(false),
 });
 
-const HASHED_PASSWORD = '$2b$10$hashedpassword';
+const HASHED_PASSWORD = new PasswordHash('$2b$10$hashedpassword');
 
 const makePasswordHasher = (): PasswordHasher => ({
   hash: vi.fn().mockResolvedValue(HASHED_PASSWORD),
@@ -56,7 +56,7 @@ const makeUser = (overrides: Partial<UserProps> = {}): User =>
     id: 'user-123',
     username: new Username('john_doe'),
     email: new Email('john@example.com'),
-    passwordHash: new PasswordHash(HASHED_PASSWORD),
+    passwordHash: HASHED_PASSWORD,
     role: UserRole.EMPLOYEE,
     isActive: true,
     createdAt: new Date('2024-01-01'),
@@ -297,7 +297,9 @@ describe('CreateUserUseCase', () => {
           role: command.role,
           username: expect.objectContaining({ value: command.username }),
           email: expect.objectContaining({ value: command.email }),
-          passwordHash: expect.objectContaining({ value: HASHED_PASSWORD }),
+          passwordHash: expect.objectContaining({
+            value: HASHED_PASSWORD.value,
+          }),
         }),
       );
 
@@ -305,7 +307,7 @@ describe('CreateUserUseCase', () => {
       expect(result.username.value).toBe(command.username);
       expect(result.email.value).toBe(command.email);
       expect(result.role).toBe(command.role);
-      expect(result.passwordHash.value).toBe(HASHED_PASSWORD);
+      expect(result.passwordHash.value).toBe(HASHED_PASSWORD.value);
     });
   });
 });

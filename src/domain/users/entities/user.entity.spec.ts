@@ -71,7 +71,7 @@ describe('User entity', () => {
       id: 'user-100',
       username: 'jane_doe',
       email: 'jane@example.com',
-      passwordHash: 'anothervalidhash12345',
+      passwordHash: new PasswordHash('anothervalidhash12345'),
       role: UserRole.ADMIN,
     });
     const after = new Date();
@@ -94,7 +94,7 @@ describe('User entity', () => {
       id: 'user-101',
       username: 'mike_smith',
       email: 'mike@example.com',
-      passwordHash: 'validhashpassword12345',
+      passwordHash: new PasswordHash('validhashpassword12345'),
       role: UserRole.HR,
     });
 
