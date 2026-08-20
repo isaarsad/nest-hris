@@ -125,8 +125,8 @@ describe('RequestingUser entity', () => {
       expect(admin.hasPermission(UserPermission.ACTIVATE_USER)).toBe(true);
     });
 
-    it('should NOT have DELETE_USER permission', () => {
-      expect(admin.hasPermission(UserPermission.DELETE_USER)).toBe(false);
+    it('should have DELETE_USER permission', () => {
+      expect(admin.hasPermission(UserPermission.DELETE_USER)).toBe(true);
     });
 
     it('should have RESTORE_USER permission', () => {
