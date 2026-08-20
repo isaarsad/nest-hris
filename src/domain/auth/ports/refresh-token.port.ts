@@ -1,4 +1,4 @@
 export interface RefreshTokenPort {
-  generateRawToken(): string;
+  generate(): string;
   hash(plainToken: string): string;
 }
