@@ -18,6 +18,7 @@ import {
   PasswordHash,
 } from '../../domain/shared/value-objects/index.js';
 import { PasswordHasher } from '../../domain/users/ports/password-hasher.port.js';
+import { IdGeneratorPort } from '../../domain/shared/ports/id-generator.port.js';
 
 // ─── Mock helpers ────────────────────────────────────────────────────────────
 
@@ -39,7 +40,9 @@ const makePasswordHasher = (): PasswordHasher => ({
   compare: vi.fn(),
 });
 
-const mockIdGenerator = () => 'id-123';
+const makeIdGenerator = (): IdGeneratorPort => ({
+  generate: vi.fn().mockReturnValue('id-123'),
+});
 
 const makeCreateUserCommand = (
   overrides: Partial<CreateUserCommand> = {},
@@ -79,14 +82,16 @@ const makeUnauthorizedUser = () => makeRequestingUser(UserRole.EMPLOYEE);
 describe('CreateUserUseCase', () => {
   let userRepository: UserRepository;
   let passwordHasher: PasswordHasher;
+  let idGenerator: IdGeneratorPort;
   let useCase: CreateUserUseCase;
 
   beforeEach(() => {
     userRepository = makeRepository();
     passwordHasher = makePasswordHasher();
+    idGenerator = makeIdGenerator();
     useCase = new CreateUserUseCase(
       userRepository,
-      mockIdGenerator,
+      idGenerator,
       passwordHasher,
     );
   });

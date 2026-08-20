@@ -11,6 +11,7 @@ import {
 } from '../../domain/users/user-role-permissions.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
 import { PasswordHasher } from '../../domain/users/ports/password-hasher.port.js';
+import { IdGeneratorPort } from '../../domain/shared/ports/id-generator.port.js';
 
 export interface CreateUserCommand {
   username: string;
@@ -22,7 +23,7 @@ export interface CreateUserCommand {
 export class CreateUserUseCase {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly idGenerator: () => string,
+    private readonly idGenerator: IdGeneratorPort,
     private readonly passwordHasher: PasswordHasher,
   ) {}
 
@@ -61,7 +62,7 @@ export class CreateUserUseCase {
     const passwordHash = await this.passwordHasher.hash(passwordPlainText);
 
     const user = User.create({
-      id: this.idGenerator(),
+      id: this.idGenerator.generate(),
       username,
       email,
       passwordHash,
