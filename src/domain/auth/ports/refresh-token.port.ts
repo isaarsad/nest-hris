@@ -1,4 +1,4 @@
-export abstract class RefreshTokenPort {
-  abstract generateRawToken(): string;
-  abstract hash(plainToken: string): string;
+export interface RefreshTokenPort {
+  generateRawToken(): string;
+  hash(plainToken: string): string;
 }
