@@ -59,6 +59,9 @@ const makeRefreshTokenPort = (): RefreshTokenPort => ({
   getExpiresAt: vi
     .fn()
     .mockReturnValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), // 7 days from now
+  getAbsoluteExpiresAt: vi
+    .fn()
+    .mockReturnValue(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
 });
 
 const makeLoginCommand = (
@@ -242,6 +245,7 @@ describe('LoginUseCase', () => {
         },
       });
       expect(refreshTokenPort.getExpiresAt).toHaveBeenCalledOnce();
+      expect(refreshTokenPort.getAbsoluteExpiresAt).toHaveBeenCalledOnce();
 
       expect(accessTokenPort.generate).toHaveBeenCalledWith({
         sub: user.id,
@@ -255,6 +259,7 @@ describe('LoginUseCase', () => {
           userId: user.id,
           tokenHash: VALID_TOKEN_HASH,
           expiresAt: expect.any(Date),
+          absoluteExpiresAt: expect.any(Date),
           revokedAt: null,
           replacedByTokenId: null,
           createdAt: expect.any(Date),

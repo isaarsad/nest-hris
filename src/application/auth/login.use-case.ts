@@ -68,12 +68,14 @@ export class LoginUseCase {
     const rawRefreshToken = this.refreshTokenPort.generate();
     const tokenHash = this.refreshTokenPort.hash(rawRefreshToken);
     const expiresAt = this.refreshTokenPort.getExpiresAt();
+    const absoluteExpiresAt = this.refreshTokenPort.getAbsoluteExpiresAt();
 
     const refreshTokenEntity = RefreshToken.create({
       id: this.idGenerator.generate(),
       userId: user.id,
       tokenHash,
       expiresAt,
+      absoluteExpiresAt,
     });
 
     await this.refreshTokenRepository.save(refreshTokenEntity);
