@@ -9,9 +9,15 @@ export interface RefreshTokenProps {
   userId: string;
   tokenHash: string;
   expiresAt: Date;
+  absoluteExpiresAt: Date;
   revokedAt: Date | null;
   replacedByTokenId: string | null;
   createdAt: Date;
+}
+
+export interface RotateRefreshTokenResult {
+  revokedOldToken: RefreshToken;
+  newToken: RefreshToken;
 }
 
 const SHA256_HEX_REGEX = /^[a-f0-9]{64}$/i;
@@ -21,6 +27,7 @@ export class RefreshToken {
   readonly userId: string;
   readonly tokenHash: string;
   readonly expiresAt: Date;
+  readonly absoluteExpiresAt: Date;
   readonly createdAt: Date;
 
   private _revokedAt: Date | null;
@@ -33,6 +40,7 @@ export class RefreshToken {
     this.userId = props.userId.trim();
     this.tokenHash = props.tokenHash.trim();
     this.expiresAt = props.expiresAt;
+    this.absoluteExpiresAt = props.absoluteExpiresAt;
     this._revokedAt = props.revokedAt;
     this._replacedByTokenId = props.replacedByTokenId
       ? props.replacedByTokenId.trim()
@@ -53,12 +61,14 @@ export class RefreshToken {
     userId: string;
     tokenHash: string;
     expiresAt: Date;
+    absoluteExpiresAt: Date;
   }): RefreshToken {
     return new RefreshToken({
       id: props.id,
       userId: props.userId,
       tokenHash: props.tokenHash,
       expiresAt: props.expiresAt,
+      absoluteExpiresAt: props.absoluteExpiresAt,
       revokedAt: null,
       replacedByTokenId: null,
       createdAt: new Date(),
@@ -87,6 +97,46 @@ export class RefreshToken {
       : null;
   }
 
+  rotate(props: {
+    newId: string;
+    newTokenHash: string;
+    ttlMs: number;
+  }): RotateRefreshTokenResult {
+    if (this.isRevoked()) {
+      throw new RefreshTokenInconsistentStateError(
+        'Cannot rotate an already revoked refresh token',
+      );
+    }
+
+    if (this.isExpired()) {
+      throw new RefreshTokenInconsistentStateError(
+        'Cannot rotate an expired refresh token',
+      );
+    }
+
+    this.revoke(props.newId);
+
+    const now = new Date();
+    const nextIdleExpiresAt = new Date(now.getTime() + props.ttlMs);
+    const newExpiresAt =
+      nextIdleExpiresAt.getTime() > this.absoluteExpiresAt.getTime()
+        ? this.absoluteExpiresAt
+        : nextIdleExpiresAt;
+
+    const newToken = new RefreshToken({
+      id: props.newId,
+      userId: this.userId,
+      tokenHash: props.newTokenHash,
+      expiresAt: newExpiresAt,
+      absoluteExpiresAt: this.absoluteExpiresAt,
+      revokedAt: null,
+      replacedByTokenId: null,
+      createdAt: now,
+    });
+
+    return { revokedOldToken: this, newToken };
+  }
+
   wasReusedAfterRevocation(now: Date = new Date()): boolean {
     return this.isRevoked() && !this.isExpired(now);
   }
@@ -101,6 +151,7 @@ export class RefreshToken {
       userId,
       tokenHash,
       expiresAt,
+      absoluteExpiresAt,
       createdAt,
       revokedAt,
       replacedByTokenId,
@@ -124,9 +175,16 @@ export class RefreshToken {
       throw new RefreshTokenInvalidHashError();
     }
 
-    if (!(expiresAt instanceof Date) || !(createdAt instanceof Date)) {
+    const isValidDate = (d: unknown): d is Date =>
+      d instanceof Date && !isNaN(d.getTime());
+
+    if (
+      !isValidDate(expiresAt) ||
+      !isValidDate(absoluteExpiresAt) ||
+      !isValidDate(createdAt)
+    ) {
       throw new RefreshTokenInvalidPayloadError(
-        'expiresAt and createdAt must be valid Date objects',
+        'expiresAt, absoluteExpiresAt, and createdAt must be valid Date objects',
       );
     }
 
@@ -136,8 +194,20 @@ export class RefreshToken {
       );
     }
 
+    if (absoluteExpiresAt.getTime() <= createdAt.getTime()) {
+      throw new RefreshTokenInconsistentStateError(
+        `absoluteExpiresAt (${absoluteExpiresAt.toISOString()}) must be later than createdAt (${createdAt.toISOString()})`,
+      );
+    }
+
+    if (expiresAt.getTime() > absoluteExpiresAt.getTime()) {
+      throw new RefreshTokenInconsistentStateError(
+        `expiresAt (${expiresAt.toISOString()}) cannot be later than absoluteExpiresAt (${absoluteExpiresAt.toISOString()})`,
+      );
+    }
+
     if (revokedAt !== null) {
-      if (!(revokedAt instanceof Date)) {
+      if (!isValidDate(revokedAt)) {
         throw new RefreshTokenInvalidPayloadError(
           'revokedAt must be a valid Date object or null',
         );

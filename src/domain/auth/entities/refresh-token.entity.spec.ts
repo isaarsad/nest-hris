@@ -3,16 +3,35 @@ import {
   RefreshTokenInvalidHashError,
   RefreshTokenInconsistentStateError,
 } from '../errors/index.js';
-import { RefreshToken, RefreshTokenProps } from './refresh-token.entity.js';
+import {
+  RefreshToken,
+  RefreshTokenProps,
+  RotateRefreshTokenResult,
+} from './refresh-token.entity.js';
 
 describe('RefreshToken entity', () => {
   const VALID_HASH = 'a'.repeat(64);
+  const NEW_VALID_HASH = 'b'.repeat(64);
+
+  // Fixed "now" used across all time-sensitive tests.
+  // Chosen to be well in the past so future/past comparisons are unambiguous.
+  const NOW = new Date('2026-01-01T00:00:00.000Z');
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   const baseProps: RefreshTokenProps = {
     id: 'token-001',
     userId: 'user-001',
     tokenHash: VALID_HASH,
     expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+    absoluteExpiresAt: new Date('2199-01-01T00:00:00.000Z'),
     revokedAt: null,
     replacedByTokenId: null,
     createdAt: new Date('2024-01-01T00:00:00.000Z'),
@@ -31,6 +50,9 @@ describe('RefreshToken entity', () => {
     expect(token.userId).toBe('user-001');
     expect(token.tokenHash).toBe(VALID_HASH);
     expect(token.expiresAt).toEqual(new Date('2099-01-01T00:00:00.000Z'));
+    expect(token.absoluteExpiresAt).toEqual(
+      new Date('2199-01-01T00:00:00.000Z'),
+    );
     expect(token.createdAt).toEqual(new Date('2024-01-01T00:00:00.000Z'));
     expect(token.revokedAt).toBeNull();
     expect(token.replacedByTokenId).toBeNull();
@@ -86,23 +108,25 @@ describe('RefreshToken entity', () => {
   // === HAPPY PATH: static create() ===
 
   it('should create a new RefreshToken via static create() with correct defaults', () => {
-    const before = new Date();
     const token = RefreshToken.create({
       id: 'token-100',
       userId: 'user-100',
       tokenHash: VALID_HASH,
       expiresAt: new Date('2099-12-31T00:00:00.000Z'),
+      absoluteExpiresAt: new Date('2199-12-31T00:00:00.000Z'),
     });
-    const after = new Date();
 
     expect(token.id).toBe('token-100');
     expect(token.userId).toBe('user-100');
     expect(token.tokenHash).toBe(VALID_HASH);
     expect(token.expiresAt).toEqual(new Date('2099-12-31T00:00:00.000Z'));
+    expect(token.absoluteExpiresAt).toEqual(
+      new Date('2199-12-31T00:00:00.000Z'),
+    );
     expect(token.revokedAt).toBeNull();
     expect(token.replacedByTokenId).toBeNull();
-    expect(token.createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
-    expect(token.createdAt.getTime()).toBeLessThanOrEqual(after.getTime());
+    // createdAt should be the frozen NOW
+    expect(token.createdAt).toEqual(NOW);
   });
 
   // === isExpired() ===
@@ -119,9 +143,16 @@ describe('RefreshToken entity', () => {
     expect(token.isExpired(afterExpiry)).toBe(true);
   });
 
-  it('should default to current time when no date is provided', () => {
-    const pastToken = buildToken({ expiresAt: new Date(Date.now() - 1000) });
-    const futureToken = buildToken({ expiresAt: new Date(Date.now() + 1000) });
+  it('should default to current time (frozen NOW) when no date is provided', () => {
+    // NOW = 2026-01-01; past token expired in 2025, future token expires in 2027
+    const pastToken = buildToken({
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+      expiresAt: new Date('2025-01-01T00:00:00.000Z'),
+      absoluteExpiresAt: new Date('2030-01-01T00:00:00.000Z'),
+    });
+    const futureToken = buildToken({
+      expiresAt: new Date('2027-01-01T00:00:00.000Z'),
+    });
 
     expect(pastToken.isExpired()).toBe(true);
     expect(futureToken.isExpired()).toBe(false);
@@ -155,6 +186,7 @@ describe('RefreshToken entity', () => {
     const token = buildToken({
       createdAt: new Date('1999-01-01T00:00:00.000Z'),
       expiresAt: new Date('2000-01-01T00:00:00.000Z'),
+      absoluteExpiresAt: new Date('2001-01-01T00:00:00.000Z'),
     });
     expect(token.isValid()).toBe(false);
   });
@@ -162,7 +194,7 @@ describe('RefreshToken entity', () => {
   it('should return false when token is revoked', () => {
     const token = buildToken({
       revokedAt: new Date('2024-06-01T00:00:00.000Z'),
-      expiresAt: new Date(Date.now() + 1000),
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
     });
     expect(token.isValid()).toBe(false);
   });
@@ -171,6 +203,7 @@ describe('RefreshToken entity', () => {
     const token = buildToken({
       createdAt: new Date('1999-01-01T00:00:00.000Z'),
       expiresAt: new Date('2000-01-01T00:00:00.000Z'),
+      absoluteExpiresAt: new Date('2001-01-01T00:00:00.000Z'),
       revokedAt: new Date('1999-06-01T00:00:00.000Z'),
     });
     expect(token.isValid()).toBe(false);
@@ -193,7 +226,8 @@ describe('RefreshToken entity', () => {
     token.revoke();
 
     expect(token.isRevoked()).toBe(true);
-    expect(token.revokedAt).toBeInstanceOf(Date);
+    // revokedAt should be set to the frozen NOW
+    expect(token.revokedAt).toEqual(NOW);
     expect(token.replacedByTokenId).toBeNull();
   });
 
@@ -226,6 +260,103 @@ describe('RefreshToken entity', () => {
     expect(token.replacedByTokenId).toBe('original-token-id');
   });
 
+  // === rotate() ===
+
+  it('should rotate a valid token and return revokedOldToken and newToken', () => {
+    const ttlMs = 60 * 60 * 1000; // 1 hour
+
+    const oldToken = buildToken({ revokedAt: null });
+    const result: RotateRefreshTokenResult = oldToken.rotate({
+      newId: 'token-new',
+      newTokenHash: NEW_VALID_HASH,
+      ttlMs,
+    });
+
+    expect(result.revokedOldToken).toBe(oldToken);
+    expect(result.revokedOldToken.isRevoked()).toBe(true);
+    expect(result.revokedOldToken.replacedByTokenId).toBe('token-new');
+
+    const { newToken } = result;
+    expect(newToken.id).toBe('token-new');
+    expect(newToken.userId).toBe(oldToken.userId);
+    expect(newToken.tokenHash).toBe(NEW_VALID_HASH);
+    expect(newToken.isRevoked()).toBe(false);
+    expect(newToken.absoluteExpiresAt).toEqual(oldToken.absoluteExpiresAt);
+    // createdAt of the new token should be the frozen NOW
+    expect(newToken.createdAt).toEqual(NOW);
+    // expiresAt = NOW + ttlMs (within absoluteExpiresAt)
+    expect(newToken.expiresAt).toEqual(new Date(NOW.getTime() + ttlMs));
+  });
+
+  it('should cap newToken.expiresAt to absoluteExpiresAt when ttl would exceed it', () => {
+    const absoluteExpiresAt = new Date(NOW.getTime() + 5_000); // NOW + 5s
+    const ttlMs = 60 * 60 * 1000; // 1 hour — would exceed absoluteExpiresAt
+
+    const oldToken = buildToken({
+      expiresAt: new Date(NOW.getTime() + 3_000),
+      absoluteExpiresAt,
+    });
+
+    const { newToken } = oldToken.rotate({
+      newId: 'token-capped',
+      newTokenHash: NEW_VALID_HASH,
+      ttlMs,
+    });
+
+    expect(newToken.expiresAt).toEqual(absoluteExpiresAt);
+  });
+
+  it('should use ttl-based expiresAt when it is within absoluteExpiresAt', () => {
+    const ttlMs = 60 * 1000; // 1 minute
+    const absoluteExpiresAt = new Date(NOW.getTime() + 24 * 60 * 60 * 1000); // NOW + 24h
+
+    const oldToken = buildToken({
+      expiresAt: new Date(NOW.getTime() + 5 * 60 * 1000),
+      absoluteExpiresAt,
+    });
+
+    const { newToken } = oldToken.rotate({
+      newId: 'token-ttl',
+      newTokenHash: NEW_VALID_HASH,
+      ttlMs,
+    });
+
+    // With frozen time: expiresAt is exactly NOW + ttlMs
+    expect(newToken.expiresAt).toEqual(new Date(NOW.getTime() + ttlMs));
+  });
+
+  it('should throw RefreshTokenInconsistentStateError when rotating an already-revoked token', () => {
+    const token = buildToken({
+      revokedAt: new Date('2024-06-01T00:00:00.000Z'),
+      replacedByTokenId: 'old-replacement',
+    });
+
+    expect(() =>
+      token.rotate({
+        newId: 'token-x',
+        newTokenHash: NEW_VALID_HASH,
+        ttlMs: 1000,
+      }),
+    ).toThrow(RefreshTokenInconsistentStateError);
+  });
+
+  it('should throw RefreshTokenInconsistentStateError when rotating an expired token', () => {
+    const token = buildToken({
+      createdAt: new Date('1999-01-01T00:00:00.000Z'),
+      expiresAt: new Date('2000-01-01T00:00:00.000Z'),
+      absoluteExpiresAt: new Date('2001-01-01T00:00:00.000Z'),
+      revokedAt: null,
+    });
+
+    expect(() =>
+      token.rotate({
+        newId: 'token-x',
+        newTokenHash: NEW_VALID_HASH,
+        ttlMs: 1000,
+      }),
+    ).toThrow(RefreshTokenInconsistentStateError);
+  });
+
   // === wasReusedAfterRevocation() ===
 
   it('should return false when token is not revoked', () => {
@@ -249,6 +380,7 @@ describe('RefreshToken entity', () => {
       createdAt: new Date('1999-01-01T00:00:00.000Z'),
       revokedAt: new Date('1999-06-01T00:00:00.000Z'),
       expiresAt: new Date('2000-01-01T00:00:00.000Z'),
+      absoluteExpiresAt: new Date('2001-01-01T00:00:00.000Z'),
     });
     expect(token.wasReusedAfterRevocation()).toBe(false);
   });
@@ -358,11 +490,17 @@ describe('RefreshToken entity', () => {
     );
   });
 
-  // === VALIDATION: expiresAt / createdAt ===
+  // === VALIDATION: expiresAt / absoluteExpiresAt / createdAt ===
 
   it('should throw RefreshTokenInvalidPayloadError when expiresAt is not a Date', () => {
     expect(() =>
       buildToken({ expiresAt: 'not-a-date' as unknown as Date }),
+    ).toThrow(RefreshTokenInvalidPayloadError);
+  });
+
+  it('should throw RefreshTokenInvalidPayloadError when absoluteExpiresAt is not a Date', () => {
+    expect(() =>
+      buildToken({ absoluteExpiresAt: 'not-a-date' as unknown as Date }),
     ).toThrow(RefreshTokenInvalidPayloadError);
   });
 
@@ -376,9 +514,13 @@ describe('RefreshToken entity', () => {
 
   it('should throw RefreshTokenInconsistentStateError when expiresAt equals createdAt', () => {
     const now = new Date('2024-01-01T00:00:00.000Z');
-    expect(() => buildToken({ createdAt: now, expiresAt: now })).toThrow(
-      RefreshTokenInconsistentStateError,
-    );
+    expect(() =>
+      buildToken({
+        createdAt: now,
+        expiresAt: now,
+        absoluteExpiresAt: new Date('2025-01-01T00:00:00.000Z'),
+      }),
+    ).toThrow(RefreshTokenInconsistentStateError);
   });
 
   it('should throw RefreshTokenInconsistentStateError when expiresAt is earlier than createdAt', () => {
@@ -386,6 +528,40 @@ describe('RefreshToken entity', () => {
       buildToken({
         createdAt: new Date('2024-06-01T00:00:00.000Z'),
         expiresAt: new Date('2024-01-01T00:00:00.000Z'),
+        absoluteExpiresAt: new Date('2025-01-01T00:00:00.000Z'),
+      }),
+    ).toThrow(RefreshTokenInconsistentStateError);
+  });
+
+  // === VALIDATION: inconsistent state – absoluteExpiresAt ===
+
+  it('should throw RefreshTokenInconsistentStateError when absoluteExpiresAt equals createdAt', () => {
+    const now = new Date('2024-01-01T00:00:00.000Z');
+    expect(() =>
+      buildToken({
+        createdAt: now,
+        expiresAt: new Date('2024-06-01T00:00:00.000Z'),
+        absoluteExpiresAt: now,
+      }),
+    ).toThrow(RefreshTokenInconsistentStateError);
+  });
+
+  it('should throw RefreshTokenInconsistentStateError when absoluteExpiresAt is earlier than createdAt', () => {
+    expect(() =>
+      buildToken({
+        createdAt: new Date('2024-06-01T00:00:00.000Z'),
+        expiresAt: new Date('2025-01-01T00:00:00.000Z'),
+        absoluteExpiresAt: new Date('2024-01-01T00:00:00.000Z'),
+      }),
+    ).toThrow(RefreshTokenInconsistentStateError);
+  });
+
+  it('should throw RefreshTokenInconsistentStateError when expiresAt is later than absoluteExpiresAt', () => {
+    expect(() =>
+      buildToken({
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        expiresAt: new Date('2025-06-01T00:00:00.000Z'),
+        absoluteExpiresAt: new Date('2025-01-01T00:00:00.000Z'),
       }),
     ).toThrow(RefreshTokenInconsistentStateError);
   });
