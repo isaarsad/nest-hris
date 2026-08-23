@@ -100,15 +100,17 @@ export class RefreshToken {
   rotate(props: {
     newId: string;
     newTokenHash: string;
-    ttlMs: number;
+    expiresAt: Date;
   }): RotateRefreshTokenResult {
+    const now = new Date();
+
     if (this.isRevoked()) {
       throw new RefreshTokenInconsistentStateError(
         'Cannot rotate an already revoked refresh token',
       );
     }
 
-    if (this.isExpired()) {
+    if (this.isExpired(now)) {
       throw new RefreshTokenInconsistentStateError(
         'Cannot rotate an expired refresh token',
       );
@@ -116,12 +118,10 @@ export class RefreshToken {
 
     this.revoke(props.newId);
 
-    const now = new Date();
-    const nextIdleExpiresAt = new Date(now.getTime() + props.ttlMs);
     const newExpiresAt =
-      nextIdleExpiresAt.getTime() > this.absoluteExpiresAt.getTime()
+      props.expiresAt.getTime() > this.absoluteExpiresAt.getTime()
         ? this.absoluteExpiresAt
-        : nextIdleExpiresAt;
+        : props.expiresAt;
 
     const newToken = new RefreshToken({
       id: props.newId,

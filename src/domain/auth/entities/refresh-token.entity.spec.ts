@@ -263,13 +263,13 @@ describe('RefreshToken entity', () => {
   // === rotate() ===
 
   it('should rotate a valid token and return revokedOldToken and newToken', () => {
-    const ttlMs = 60 * 60 * 1000; // 1 hour
+    const newExpiresAt = new Date(NOW.getTime() + 60 * 60 * 1000); // NOW + 1 hour
 
     const oldToken = buildToken({ revokedAt: null });
     const result: RotateRefreshTokenResult = oldToken.rotate({
       newId: 'token-new',
       newTokenHash: NEW_VALID_HASH,
-      ttlMs,
+      expiresAt: newExpiresAt,
     });
 
     expect(result.revokedOldToken).toBe(oldToken);
@@ -284,13 +284,13 @@ describe('RefreshToken entity', () => {
     expect(newToken.absoluteExpiresAt).toEqual(oldToken.absoluteExpiresAt);
     // createdAt of the new token should be the frozen NOW
     expect(newToken.createdAt).toEqual(NOW);
-    // expiresAt = NOW + ttlMs (within absoluteExpiresAt)
-    expect(newToken.expiresAt).toEqual(new Date(NOW.getTime() + ttlMs));
+    // expiresAt = newExpiresAt (within absoluteExpiresAt)
+    expect(newToken.expiresAt).toEqual(newExpiresAt);
   });
 
-  it('should cap newToken.expiresAt to absoluteExpiresAt when ttl would exceed it', () => {
+  it('should cap newToken.expiresAt to absoluteExpiresAt when requested expiresAt exceeds it', () => {
     const absoluteExpiresAt = new Date(NOW.getTime() + 5_000); // NOW + 5s
-    const ttlMs = 60 * 60 * 1000; // 1 hour — would exceed absoluteExpiresAt
+    const requestedExpiresAt = new Date(NOW.getTime() + 60 * 60 * 1000); // 1 hour — exceeds absoluteExpiresAt
 
     const oldToken = buildToken({
       expiresAt: new Date(NOW.getTime() + 3_000),
@@ -300,14 +300,14 @@ describe('RefreshToken entity', () => {
     const { newToken } = oldToken.rotate({
       newId: 'token-capped',
       newTokenHash: NEW_VALID_HASH,
-      ttlMs,
+      expiresAt: requestedExpiresAt,
     });
 
     expect(newToken.expiresAt).toEqual(absoluteExpiresAt);
   });
 
-  it('should use ttl-based expiresAt when it is within absoluteExpiresAt', () => {
-    const ttlMs = 60 * 1000; // 1 minute
+  it('should use requested expiresAt when it is within absoluteExpiresAt', () => {
+    const requestedExpiresAt = new Date(NOW.getTime() + 60 * 1000); // NOW + 1 minute
     const absoluteExpiresAt = new Date(NOW.getTime() + 24 * 60 * 60 * 1000); // NOW + 24h
 
     const oldToken = buildToken({
@@ -318,11 +318,11 @@ describe('RefreshToken entity', () => {
     const { newToken } = oldToken.rotate({
       newId: 'token-ttl',
       newTokenHash: NEW_VALID_HASH,
-      ttlMs,
+      expiresAt: requestedExpiresAt,
     });
 
-    // With frozen time: expiresAt is exactly NOW + ttlMs
-    expect(newToken.expiresAt).toEqual(new Date(NOW.getTime() + ttlMs));
+    // expiresAt = requestedExpiresAt (not capped)
+    expect(newToken.expiresAt).toEqual(requestedExpiresAt);
   });
 
   it('should throw RefreshTokenInconsistentStateError when rotating an already-revoked token', () => {
@@ -335,7 +335,7 @@ describe('RefreshToken entity', () => {
       token.rotate({
         newId: 'token-x',
         newTokenHash: NEW_VALID_HASH,
-        ttlMs: 1000,
+        expiresAt: new Date(NOW.getTime() + 1000),
       }),
     ).toThrow(RefreshTokenInconsistentStateError);
   });
@@ -352,7 +352,7 @@ describe('RefreshToken entity', () => {
       token.rotate({
         newId: 'token-x',
         newTokenHash: NEW_VALID_HASH,
-        ttlMs: 1000,
+        expiresAt: new Date(NOW.getTime() + 1000),
       }),
     ).toThrow(RefreshTokenInconsistentStateError);
   });
