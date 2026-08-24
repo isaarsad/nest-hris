@@ -20,12 +20,17 @@ const envSchema = z.object({
   PGPASSWORD: z.string().default(''),
   PGDATABASE: z.string().min(1),
 
-  // Auth
-  ACCESS_TOKEN_KEY: z.string().min(8),
-  REFRESH_TOKEN_KEY: z.string().min(8),
-  ACCESS_TOKEN_AGE: z.string().default('15m'),
-  PRE_AUTH_TOKEN_KEY: z.string().min(8),
-  PRE_AUTH_TOKEN_AGE: z.string().default('5m'),
+  // Auth - JWT Access Token
+  JWT_ACCESS_SECRET: z.string().min(32, 'Minimal 32 karakter demi keamanan'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+
+  // Auth - Refresh Token TTL (dalam hari)
+  REFRESH_TOKEN_TTL_IDLE_DAYS: z.coerce.number().int().positive().default(7),
+  REFRESH_TOKEN_TTL_ABSOLUTE_DAYS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

@@ -6,12 +6,14 @@ export const config = {
     port: env.PORT,
   },
   auth: {
-    jwtStrategy: 'nesthris',
-    accessTokenKey: env.ACCESS_TOKEN_KEY,
-    refreshTokenKey: env.REFRESH_TOKEN_KEY,
-    accessTokenAge: env.ACCESS_TOKEN_AGE,
-    preAuthTokenKey: env.PRE_AUTH_TOKEN_KEY,
-    preAuthTokenAge: env.PRE_AUTH_TOKEN_AGE,
+    jwt: {
+      secret: env.JWT_ACCESS_SECRET,
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+    },
+    refreshToken: {
+      idle: env.REFRESH_TOKEN_TTL_IDLE_DAYS,
+      absolute: env.REFRESH_TOKEN_TTL_ABSOLUTE_DAYS,
+    },
   },
   database: {
     type: 'postgres' as const,
