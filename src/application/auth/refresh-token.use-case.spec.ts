@@ -56,6 +56,7 @@ const makeRefreshTokenRepository = (): RefreshTokenRepository => ({
   findById: vi.fn(),
   findByTokenHash: vi.fn(),
   revokeAllByUserId: vi.fn(),
+  deleteExpired: vi.fn(),
 });
 
 const makeIdGenerator = (): IdGeneratorPort => ({

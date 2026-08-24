@@ -5,4 +5,5 @@ export interface RefreshTokenRepository {
   findById(id: string): Promise<RefreshToken | null>;
   findByTokenHash(tokenHash: string): Promise<RefreshToken | null>;
   revokeAllByUserId(userId: string): Promise<void>;
+  deleteExpired(now: Date): Promise<number>;
 }
