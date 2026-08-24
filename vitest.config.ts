@@ -23,6 +23,7 @@ export default defineConfig({
         'src/presentation/http/users/users.controller.ts',
         'src/presentation/http/departments/departments.module.ts',
         'src/presentation/http/users/users.module.ts',
+        'test/helpers/**',
       ],
     },
   },

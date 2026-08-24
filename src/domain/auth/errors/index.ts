@@ -5,3 +5,4 @@ export * from './invalid-credentials.error.js';
 export * from './user-inactive.error.js';
 export * from './token-invalid.error.js';
 export * from './token-expired.error.js';
+export * from './refresh-token-already-exists.error.js';
