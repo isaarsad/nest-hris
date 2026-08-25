@@ -22,7 +22,13 @@ const envSchema = z.object({
 
   // Auth - JWT Access Token
   JWT_ACCESS_SECRET: z.string().min(32, 'Minimal 32 karakter demi keamanan'),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_ACCESS_EXPIRES_IN: z
+    .string()
+    .regex(
+      /^\d+[smhdwy]$/,
+      'Must be a number followed by a unit (s, m, h, d, w, y), e.g., 15m',
+    )
+    .default('15m'),
 
   // Auth - Refresh Token TTL (dalam hari)
   REFRESH_TOKEN_TTL_IDLE_DAYS: z.coerce.number().int().positive().default(7),
