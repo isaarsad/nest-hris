@@ -4,6 +4,6 @@ export class TokenInvalidError extends UnauthorizedError {
   readonly code = 'TOKEN_INVALID';
 
   constructor() {
-    super('Refresh token is invalid');
+    super('token is invalid or expired');
   }
 }
