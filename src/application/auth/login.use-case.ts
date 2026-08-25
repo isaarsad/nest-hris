@@ -11,6 +11,7 @@ import { RefreshTokenPort } from '../../domain/auth/ports/refresh-token.port.js'
 import { Email } from '../../domain/shared/value-objects/email.vo.js';
 import { UserRepository } from '../../domain/users/user.repository.js';
 import { PasswordHash } from '../../domain/shared/value-objects/password-hash.vo.js';
+import { UserRole } from '../../domain/users/user-role-permissions.js';
 
 export interface LoginCommand {
   readonly email: string;
@@ -24,7 +25,7 @@ export interface LoginResult {
     readonly id: string;
     readonly email: string;
     readonly username: string;
-    readonly role: string;
+    readonly role: UserRole;
   };
 }
 
