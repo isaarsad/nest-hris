@@ -9,9 +9,11 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { UsersModule } from './presentation/http/users/users.module.js';
 import { AuthModule } from './presentation/http/auth/auth.module.js';
 import { AuthGuard } from './presentation/http/guards/auth.guard.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot(dataSourceOptions),
     DepartmentsModule,
     UsersModule,

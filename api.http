@@ -1,20 +1,78 @@
-POST http://localhost:3000/departments
-Content-Type: application/json
-
-{ "name": "Engineering", "code": "eng" }
-
-###
-
-GET http://localhost:3000/departments
-Content-Type: application/json
-
+### ==========================================================================
+### GLOBAL VARIABLES & CONFIGURATION
+### ==========================================================================
 @baseUrl = http://localhost:3000
-# Ganti userId ini pake UUID asli dari database / hasil response POST /users
+@contentType = application/json
+
+# Mock UUID for dynamic route testing
 @userId = 892ac592-b017-4660-be6f-4dd881dfb0fe
 
-### 1. Create User (Lulus Zod DTO Validation)
+### ==========================================================================
+### 1. AUTHENTICATION MODULE (PUBLIC & PROTECTED)
+### ==========================================================================
+
+### 1.1 Login (Public - Automatically captures tokens)
+# @name loginResponse
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "johndoe@example.com",
+  "password": "SuperSecret123!"
+}
+
+### Dynamically extract tokens from the login response
+@accessToken = {{loginResponse.response.body.accessToken}}
+@refreshToken = {{loginResponse.response.body.refreshToken}}
+
+### 1.2 Refresh Token (Public / Semi-Public)
+# @name refreshResponse
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Dynamically extract tokens from the refresh response
+@newAccessToken = {{refreshResponse.response.body.accessToken}}
+@newRefreshToken = {{refreshResponse.response.body.refreshToken}}
+
+### 1.3 Logout (Protected)
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ==========================================================================
+### 2. DEPARTMENTS MODULE (PROTECTED)
+### ==========================================================================
+
+### 2.1 Get All Departments
+GET {{baseUrl}}/departments
+Authorization: Bearer {{accessToken}}
+
+### 2.2 Create Department
+POST {{baseUrl}}/departments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Engineering",
+  "code": "ENG"
+}
+
+### ==========================================================================
+### 3. USERS MODULE (PROTECTED)
+### ==========================================================================
+
+### 3.1 Create User
 POST {{baseUrl}}/users
-Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
 
 {
   "username": "johndoe",
@@ -23,18 +81,22 @@ Content-Type: application/json
   "role": "HR"
 }
 
-### 2. Get All Users
+### 3.2 Get All Users
 GET {{baseUrl}}/users
+Authorization: Bearer {{accessToken}}
 
-### 3. Activate User (Path Variable UUID)
+### 3.3 Activate User (Path Variable UUID)
 PATCH {{baseUrl}}/users/{{userId}}/activate
+Authorization: Bearer {{accessToken}}
 
-### 4. Deactivate User (Path Variable UUID)
+### 3.4 Deactivate User (Path Variable UUID)
 PATCH {{baseUrl}}/users/{{userId}}/deactivate
+Authorization: Bearer {{accessToken}}
 
-### 5. Change User Role (Lulus Zod Enum Validation)
+### 3.5 Change User Role
 PATCH {{baseUrl}}/users/{{userId}}/role
-Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
 
 {
   "role": "ROOT"

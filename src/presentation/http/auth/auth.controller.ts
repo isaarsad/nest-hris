@@ -1,4 +1,13 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { Public } from '../decorators/public.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
@@ -7,6 +16,9 @@ import { RefreshTokenUseCase } from '../../../application/auth/refresh-token.use
 import { LogoutUseCase } from '../../../application/auth/logout.use-case.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
 import { RefreshTokenResponseDto } from './dto/refresh-token-response.dto.js';
+import { CurrentUser } from '../decorators/current-user.decorator.js';
+import { RequestingUser } from '../../../domain/users/entities/requesting-user.entity.js';
+import { RevokeUserSessionsUseCase } from '../../../application/auth/revoke-user-sessions.use-case.js';
 
 @Controller('auth')
 export class AuthController {
@@ -14,6 +26,7 @@ export class AuthController {
     private readonly loginUseCase: LoginUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
+    private readonly revokeUserSessionsUseCase: RevokeUserSessionsUseCase,
   ) {}
 
   @Public()
@@ -44,5 +57,14 @@ export class AuthController {
     await this.logoutUseCase.execute({
       refreshToken: dto.refreshToken,
     });
+  }
+
+  @Delete(':id/sessions')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeSessions(
+    @CurrentUser() currentUser: RequestingUser,
+    @Param('id', ParseUUIDPipe) targetUserId: string,
+  ) {
+    await this.revokeUserSessionsUseCase.execute(currentUser, targetUserId);
   }
 }

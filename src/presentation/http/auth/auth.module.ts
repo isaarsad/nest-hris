@@ -13,6 +13,8 @@ import { IdGeneratorPort } from '../../../domain/shared/ports/id-generator.port.
 import { LoginUseCase } from '../../../application/auth/login.use-case.js';
 import { RefreshTokenUseCase } from '../../../application/auth/refresh-token.use-case.js';
 import { LogoutUseCase } from '../../../application/auth/logout.use-case.js';
+import { RevokeUserSessionsUseCase } from '../../../application/auth/revoke-user-sessions.use-case.js';
+import { DeleteExpiredTokensUseCase } from '../../../application/auth/delete-expired-tokens.use-case.js';
 
 // Infrastructure Layer (Entities & Implementations)
 import { UserOrmEntity } from '../../../infrastructure/database/entities/user.orm-entity.js';
@@ -23,6 +25,7 @@ import { Argon2PasswordHasher } from '../../../infrastructure/security/argon2-pa
 import { JwtAccessToken } from '../../../infrastructure/security/jwt-access-token.js';
 import { CryptoRefreshToken } from '../../../infrastructure/security/crypto-refresh-token.js';
 import { UuidGenerator } from '../../../infrastructure/utils/uuid-generator.js';
+import { TokenCleanupTask } from '../../cron/token-cleanup.task.js';
 
 // Presentation Layer (Controller & Guards)
 import { AuthController } from './auth.controller.js';
@@ -128,12 +131,32 @@ export const ID_GENERATOR = Symbol('ID_GENERATOR');
         return new LogoutUseCase(refreshTokenRepo, refreshTokenPort);
       },
     },
+    {
+      provide: RevokeUserSessionsUseCase,
+      inject: [REFRESH_TOKEN_REPOSITORY, USER_REPOSITORY],
+      useFactory: (
+        refreshTokenRepo: RefreshTokenRepository,
+        userRepo: UserRepository,
+      ) => {
+        return new RevokeUserSessionsUseCase(refreshTokenRepo, userRepo);
+      },
+    },
+    {
+      provide: DeleteExpiredTokensUseCase,
+      inject: [REFRESH_TOKEN_REPOSITORY],
+      useFactory: (refreshTokenRepo: RefreshTokenRepository) => {
+        return new DeleteExpiredTokensUseCase(refreshTokenRepo);
+      },
+    },
+    TokenCleanupTask,
   ],
   exports: [
     ACCESS_TOKEN_PORT,
     LoginUseCase,
     RefreshTokenUseCase,
     LogoutUseCase,
+    RevokeUserSessionsUseCase,
+    DeleteExpiredTokensUseCase,
   ],
 })
 export class AuthModule {}
