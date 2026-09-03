@@ -13,10 +13,7 @@ describe('Users (E2E)', () => {
   let server: Server;
   let dataSource: DataSource;
   let userHelper: UserTableTestHelper;
-  let rootAuthHeader: Record<string, string>;
-  let adminAuthHeader: Record<string, string>;
-  let hrAuthHeader: Record<string, string>;
-  let employeeAuthHeader: Record<string, string>;
+  let authHeaders: Record<UserRole, Record<string, string>>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -31,16 +28,21 @@ describe('Users (E2E)', () => {
     dataSource = moduleFixture.get<DataSource>(DataSource);
     userHelper = new UserTableTestHelper(dataSource);
 
-    rootAuthHeader = await createAuthHeader(crypto.randomUUID(), UserRole.ROOT);
-    adminAuthHeader = await createAuthHeader(
-      crypto.randomUUID(),
-      UserRole.ADMIN,
-    );
-    hrAuthHeader = await createAuthHeader(crypto.randomUUID(), UserRole.HR);
-    employeeAuthHeader = await createAuthHeader(
-      crypto.randomUUID(),
-      UserRole.EMPLOYEE,
-    );
+    authHeaders = {
+      [UserRole.ROOT]: await createAuthHeader(
+        crypto.randomUUID(),
+        UserRole.ROOT,
+      ),
+      [UserRole.ADMIN]: await createAuthHeader(
+        crypto.randomUUID(),
+        UserRole.ADMIN,
+      ),
+      [UserRole.HR]: await createAuthHeader(crypto.randomUUID(), UserRole.HR),
+      [UserRole.EMPLOYEE]: await createAuthHeader(
+        crypto.randomUUID(),
+        UserRole.EMPLOYEE,
+      ),
+    };
   });
 
   afterAll(async () => {
@@ -49,6 +51,38 @@ describe('Users (E2E)', () => {
 
   afterEach(async () => {
     await userHelper.clear();
+  });
+
+  // ============================================================
+  // Sanity Check: Module-Level Auth Guard
+  // ============================================================
+  describe('Authentication Guard (401 Unauthorized)', () => {
+    it('should return 401 when Authorization header is missing', async () => {
+      const response = await request(server).get('/users').expect(401);
+
+      expect(response.body).toMatchObject({
+        statusCode: 401,
+        error: 'TOKEN_INVALID',
+        message: expect.any(String),
+        path: '/users',
+        timestamp: expect.any(String),
+      });
+    });
+
+    it('should return 401 when token is malformed or invalid', async () => {
+      const response = await request(server)
+        .get('/users')
+        .set({ Authorization: 'Bearer random-garbage-jwt' })
+        .expect(401);
+
+      expect(response.body).toMatchObject({
+        statusCode: 401,
+        error: 'TOKEN_INVALID',
+        message: expect.any(String),
+        path: '/users',
+        timestamp: expect.any(String),
+      });
+    });
   });
 
   // ============================================================
@@ -66,7 +100,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .send(payload)
           .expect(201);
 
@@ -101,13 +135,34 @@ describe('Users (E2E)', () => {
     describe('Role Permission & Hierarchy Rules', () => {
       describe('Allowed Role Hierarchy Creation', () => {
         it.each([
-          { creatorRole: () => rootAuthHeader, targetRole: UserRole.ROOT },
-          { creatorRole: () => rootAuthHeader, targetRole: UserRole.ADMIN },
-          { creatorRole: () => rootAuthHeader, targetRole: UserRole.HR },
-          { creatorRole: () => rootAuthHeader, targetRole: UserRole.EMPLOYEE },
-          { creatorRole: () => adminAuthHeader, targetRole: UserRole.HR },
-          { creatorRole: () => adminAuthHeader, targetRole: UserRole.EMPLOYEE },
-          { creatorRole: () => hrAuthHeader, targetRole: UserRole.EMPLOYEE },
+          {
+            creatorRole: UserRole.ROOT,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            creatorRole: UserRole.ROOT,
+            targetRole: UserRole.ADMIN,
+          },
+          {
+            creatorRole: UserRole.ROOT,
+            targetRole: UserRole.HR,
+          },
+          {
+            creatorRole: UserRole.ROOT,
+            targetRole: UserRole.EMPLOYEE,
+          },
+          {
+            creatorRole: UserRole.ADMIN,
+            targetRole: UserRole.HR,
+          },
+          {
+            creatorRole: UserRole.ADMIN,
+            targetRole: UserRole.EMPLOYEE,
+          },
+          {
+            creatorRole: UserRole.HR,
+            targetRole: UserRole.EMPLOYEE,
+          },
         ])(
           'should ALLOW $creatorRole to create a user with role $targetRole',
           async ({ creatorRole, targetRole }) => {
@@ -121,7 +176,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .post('/users')
-              .set(creatorRole())
+              .set(authHeaders[creatorRole])
               .send(payload)
               .expect(201);
 
@@ -167,7 +222,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .post('/users')
-              .set(employeeAuthHeader)
+              .set(authHeaders[UserRole.EMPLOYEE])
               .send(payload)
               .expect(403);
 
@@ -175,6 +230,7 @@ describe('Users (E2E)', () => {
               statusCode: 403,
               error: 'USER_PERMISSION_DENIED',
               message: expect.any(String),
+              path: '/users',
               timestamp: expect.any(String),
             });
 
@@ -184,11 +240,26 @@ describe('Users (E2E)', () => {
         );
 
         it.each([
-          { creatorRole: () => hrAuthHeader, targetRole: UserRole.ROOT },
-          { creatorRole: () => hrAuthHeader, targetRole: UserRole.ADMIN },
-          { creatorRole: () => hrAuthHeader, targetRole: UserRole.HR },
-          { creatorRole: () => adminAuthHeader, targetRole: UserRole.ROOT },
-          { creatorRole: () => adminAuthHeader, targetRole: UserRole.ADMIN },
+          {
+            creatorRole: UserRole.HR,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            creatorRole: UserRole.HR,
+            targetRole: UserRole.ADMIN,
+          },
+          {
+            creatorRole: UserRole.HR,
+            targetRole: UserRole.HR,
+          },
+          {
+            creatorRole: UserRole.ADMIN,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            creatorRole: UserRole.ADMIN,
+            targetRole: UserRole.ADMIN,
+          },
         ])(
           'should FORBID $creatorRole from creating a user with role $targetRole (Hierarchy Violation)',
           async ({ creatorRole, targetRole }) => {
@@ -202,7 +273,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .post('/users')
-              .set(creatorRole())
+              .set(authHeaders[creatorRole])
               .send(payload)
               .expect(403);
 
@@ -210,6 +281,7 @@ describe('Users (E2E)', () => {
               statusCode: 403,
               error: 'USER_HIERARCHY_VIOLATION',
               message: expect.any(String),
+              path: '/users',
               timestamp: expect.any(String),
             });
             const raw = await userHelper.findByUsernameRaw(payload.username);
@@ -313,7 +385,7 @@ describe('Users (E2E)', () => {
         async ({ payload, expectedError }) => {
           const response = await request(server)
             .post('/users')
-            .set(rootAuthHeader)
+            .set(authHeaders[UserRole.ROOT])
             .send(payload)
             .expect(400);
 
@@ -328,6 +400,7 @@ describe('Users (E2E)', () => {
                 message: expect.any(String),
               },
             ]),
+            path: '/users',
           });
         },
       );
@@ -343,7 +416,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .send({
             username: 'john_doe',
             email: 'new_john@example.com',
@@ -372,7 +445,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .send({
             username: 'new_johndoe',
             email: 'johndoe@example.com',
@@ -400,7 +473,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .send({
             username: 'ExistingUser',
             email: 'new@example.com',
@@ -413,6 +486,7 @@ describe('Users (E2E)', () => {
           statusCode: 409,
           error: 'USER_ALREADY_EXISTS',
           message: expect.stringMatching(/existinguser/i),
+          path: '/users',
           timestamp: expect.any(String),
         });
       });
@@ -425,7 +499,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .send({
             username: 'brandnewuser',
             email: 'Taken@Example.com',
@@ -438,6 +512,7 @@ describe('Users (E2E)', () => {
           statusCode: 409,
           error: 'USER_ALREADY_EXISTS',
           message: expect.stringMatching(/taken@example\.com/i),
+          path: '/users',
           timestamp: expect.any(String),
         });
       });
@@ -452,7 +527,7 @@ describe('Users (E2E)', () => {
       it('should return an empty array when no users exist', async () => {
         const response = await request(server)
           .get('/users')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(200);
 
         expect(response.body).toEqual([]);
@@ -472,7 +547,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .get('/users')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(200);
 
         expect(response.body).toHaveLength(2);
@@ -520,7 +595,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .get('/users')
-              .set(await createAuthHeader(crypto.randomUUID(), role))
+              .set(authHeaders[role])
               .expect(200);
 
             expect(response.body).toHaveLength(2);
@@ -542,21 +617,19 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .get('/users')
-            .set(employeeAuthHeader)
+            .set(authHeaders[UserRole.EMPLOYEE])
             .expect(403);
 
           expect(response.body).toMatchObject({
             statusCode: 403,
             error: 'USER_PERMISSION_DENIED',
             message: expect.any(String),
+            path: '/users',
             timestamp: expect.any(String),
           });
         });
 
-        it.each([
-          { role: () => rootAuthHeader },
-          { role: () => adminAuthHeader },
-        ])(
+        it.each([{ role: UserRole.ROOT }, { role: UserRole.ADMIN }])(
           'should include soft-deleted users when requested by $role',
           async ({ role }) => {
             await userHelper.insert({
@@ -567,12 +640,13 @@ describe('Users (E2E)', () => {
               username: `deleted_user`,
               email: `deleted_user@example.com`,
               isActive: false, // should false if deletedAt is not null
+              createdAt: new Date(),
               deletedAt: new Date(Date.now() + 1000), // Soft-deleted
             });
 
             const response = await request(server)
               .get('/users')
-              .set(role())
+              .set(authHeaders[role])
               .expect(200);
 
             expect(response.body).toHaveLength(2);
@@ -600,7 +674,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .get('/users')
-            .set(hrAuthHeader)
+            .set(authHeaders[UserRole.HR])
             .expect(200);
 
           expect(response.body).toHaveLength(1);
@@ -628,7 +702,7 @@ describe('Users (E2E)', () => {
 
         await request(server)
           .patch(`/users/${user.id}/activate`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(204);
 
         const raw = await userHelper.findByIdRaw(user.id);
@@ -644,13 +718,34 @@ describe('Users (E2E)', () => {
     describe('Role Permission & Hierarchy Rules', () => {
       describe('Allowed Role Hierarchy Activation', () => {
         it.each([
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.ROOT },
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.ADMIN },
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.HR },
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.EMPLOYEE },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.HR },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.EMPLOYEE },
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.EMPLOYEE },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.ADMIN,
+          },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.HR,
+          },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.EMPLOYEE,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.HR,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.EMPLOYEE,
+          },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.EMPLOYEE,
+          },
         ])(
           'should ALLOW $actorRole to activate a user with role $targetRole',
           async ({ actorRole, targetRole }) => {
@@ -664,7 +759,7 @@ describe('Users (E2E)', () => {
 
             await request(server)
               .patch(`/users/${user.id}/activate`)
-              .set(actorRole())
+              .set(authHeaders[actorRole])
               .expect(204);
 
             const raw = await userHelper.findByIdRaw(user.id);
@@ -692,13 +787,14 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/activate`)
-              .set(employeeAuthHeader)
+              .set(authHeaders[UserRole.EMPLOYEE])
               .expect(403);
 
             expect(response.body).toMatchObject({
               statusCode: 403,
               error: 'USER_PERMISSION_DENIED',
               message: expect.any(String),
+              path: `/users/${user.id}/activate`,
               timestamp: expect.any(String),
             });
 
@@ -708,11 +804,26 @@ describe('Users (E2E)', () => {
         );
 
         it.each([
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.ROOT },
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.ADMIN },
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.HR },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.ROOT },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.ADMIN },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.ADMIN,
+          },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.HR,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.ADMIN,
+          },
         ])(
           'should FORBID $actorRole from activating user with role $targetRole (Hierarchy Violation)',
           async ({ actorRole, targetRole }) => {
@@ -726,13 +837,14 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/activate`)
-              .set(actorRole())
+              .set(authHeaders[actorRole])
               .expect(403);
 
             expect(response.body).toMatchObject({
               statusCode: 403,
               error: 'USER_HIERARCHY_VIOLATION',
               message: expect.any(String),
+              path: `/users/${user.id}/activate`,
               timestamp: expect.any(String),
             });
 
@@ -753,13 +865,14 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${user.id}/activate`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(409);
 
         expect(response.body).toMatchObject({
           statusCode: 409,
           error: 'USER_ALREADY_ACTIVE',
           message: expect.stringMatching(/already active/i),
+          path: `/users/${user.id}/activate`,
           timestamp: expect.any(String),
         });
         expect(response.body.message).toContain(user.username);
@@ -770,13 +883,14 @@ describe('Users (E2E)', () => {
       it('should return 400 when id is not a valid UUID', async () => {
         const response = await request(server)
           .patch('/users/invalid-uuid/activate')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(400);
 
         expect(response.body).toMatchObject({
           statusCode: 400,
           message: expect.any(String),
           error: 'Bad Request',
+          path: '/users/invalid-uuid/activate',
           timestamp: expect.any(String),
         });
       });
@@ -786,13 +900,14 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${nonExistentId}/activate`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(404);
 
         expect(response.body).toMatchObject({
           statusCode: 404,
           error: 'USER_NOT_FOUND',
           message: expect.stringMatching(/not found/i),
+          path: `/users/${nonExistentId}/activate`,
           timestamp: expect.any(String),
         });
       });
@@ -813,7 +928,7 @@ describe('Users (E2E)', () => {
 
         await request(server)
           .patch(`/users/${user.id}/deactivate`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(204);
 
         const raw = await userHelper.findByIdRaw(user.id);
@@ -829,13 +944,34 @@ describe('Users (E2E)', () => {
     describe('Role Permission & Hierarchy Rules', () => {
       describe('Allowed Role Hierarchy Deactivation', () => {
         it.each([
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.ROOT },
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.ADMIN },
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.HR },
-          { actorRole: () => rootAuthHeader, targetRole: UserRole.EMPLOYEE },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.HR },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.EMPLOYEE },
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.EMPLOYEE },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.ADMIN,
+          },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.HR,
+          },
+          {
+            actorRole: UserRole.ROOT,
+            targetRole: UserRole.EMPLOYEE,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.HR,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.EMPLOYEE,
+          },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.EMPLOYEE,
+          },
         ])(
           'should ALLOW $actorRole to deactivate a user with role $targetRole',
           async ({ actorRole, targetRole }) => {
@@ -849,7 +985,7 @@ describe('Users (E2E)', () => {
 
             await request(server)
               .patch(`/users/${user.id}/deactivate`)
-              .set(actorRole())
+              .set(authHeaders[actorRole])
               .expect(204);
 
             const raw = await userHelper.findByIdRaw(user.id);
@@ -877,13 +1013,14 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/deactivate`)
-              .set(employeeAuthHeader)
+              .set(authHeaders[UserRole.EMPLOYEE])
               .expect(403);
 
             expect(response.body).toMatchObject({
               statusCode: 403,
               error: 'USER_PERMISSION_DENIED',
               message: expect.any(String),
+              path: `/users/${user.id}/deactivate`,
               timestamp: expect.any(String),
             });
 
@@ -893,11 +1030,26 @@ describe('Users (E2E)', () => {
         );
 
         it.each([
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.ROOT },
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.ADMIN },
-          { actorRole: () => hrAuthHeader, targetRole: UserRole.HR },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.ROOT },
-          { actorRole: () => adminAuthHeader, targetRole: UserRole.ADMIN },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.ADMIN,
+          },
+          {
+            actorRole: UserRole.HR,
+            targetRole: UserRole.HR,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.ROOT,
+          },
+          {
+            actorRole: UserRole.ADMIN,
+            targetRole: UserRole.ADMIN,
+          },
         ])(
           'should FORBID $actorRole from deactivating user with role $targetRole (Hierarchy Violation)',
           async ({ actorRole, targetRole }) => {
@@ -911,13 +1063,14 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/deactivate`)
-              .set(actorRole())
+              .set(authHeaders[actorRole])
               .expect(403);
 
             expect(response.body).toMatchObject({
               statusCode: 403,
               error: 'USER_HIERARCHY_VIOLATION',
               message: expect.any(String),
+              path: `/users/${user.id}/deactivate`,
               timestamp: expect.any(String),
             });
 
@@ -952,6 +1105,7 @@ describe('Users (E2E)', () => {
             statusCode: 400,
             error: 'SELF_DEACTIVATION_NOT_ALLOWED',
             message: expect.stringMatching(/deactivate/i),
+            path: `/users/${user.id}/deactivate`,
             timestamp: expect.any(String),
           });
 
@@ -969,13 +1123,14 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${user.id}/deactivate`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(409);
 
         expect(response.body).toMatchObject({
           statusCode: 409,
           error: 'USER_ALREADY_INACTIVE',
           message: expect.stringMatching(/already inactive/i),
+          path: `/users/${user.id}/deactivate`,
           timestamp: expect.any(String),
         });
         expect(response.body.message).toContain(user.username);
@@ -986,13 +1141,14 @@ describe('Users (E2E)', () => {
       it('should return 400 when id is not a valid UUID', async () => {
         const response = await request(server)
           .patch('/users/not-a-uuid/deactivate')
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(400);
 
         expect(response.body).toMatchObject({
           statusCode: 400,
           message: expect.any(String),
           error: 'Bad Request',
+          path: '/users/not-a-uuid/deactivate',
           timestamp: expect.any(String),
         });
       });
@@ -1002,13 +1158,14 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${nonExistentId}/deactivate`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .expect(404);
 
         expect(response.body).toMatchObject({
           statusCode: 404,
           error: 'USER_NOT_FOUND',
           message: expect.stringMatching(/not found/i),
+          path: `/users/${nonExistentId}/deactivate`,
           timestamp: expect.any(String),
         });
       });
@@ -1029,7 +1186,7 @@ describe('Users (E2E)', () => {
 
         await request(server)
           .patch(`/users/${user.id}/role`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .send({ role: UserRole.HR })
           .expect(204);
 
@@ -1051,68 +1208,68 @@ describe('Users (E2E)', () => {
           // ==========================================
           // Target: ROOT
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.ROOT,
             newRole: UserRole.ADMIN,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.ROOT,
             newRole: UserRole.HR,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.ROOT,
             newRole: UserRole.EMPLOYEE,
           },
 
           // Target: ADMIN
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.ADMIN,
             newRole: UserRole.ROOT,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.ADMIN,
             newRole: UserRole.HR,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.ADMIN,
             newRole: UserRole.EMPLOYEE,
           },
 
           // Target: HR
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.HR,
             newRole: UserRole.ROOT,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.HR,
             newRole: UserRole.ADMIN,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.HR,
             newRole: UserRole.EMPLOYEE,
           },
 
           // Target: EMPLOYEE
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.ROOT,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.ADMIN,
           },
           {
-            actorRole: () => rootAuthHeader,
+            actorRole: UserRole.ROOT,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.HR,
           },
@@ -1121,12 +1278,12 @@ describe('Users (E2E)', () => {
           // ADMIN (Can only manage HR <-> EMPLOYEE)
           // ==========================================
           {
-            actorRole: () => adminAuthHeader,
+            actorRole: UserRole.ADMIN,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.HR,
           },
           {
-            actorRole: () => adminAuthHeader,
+            actorRole: UserRole.ADMIN,
             targetRole: UserRole.HR,
             newRole: UserRole.EMPLOYEE,
           },
@@ -1142,7 +1299,7 @@ describe('Users (E2E)', () => {
 
             await request(server)
               .patch(`/users/${user.id}/role`)
-              .set(actorRole())
+              .set(authHeaders[actorRole])
               .send({ role: newRole })
               .expect(204);
 
@@ -1153,10 +1310,7 @@ describe('Users (E2E)', () => {
       });
 
       describe('Forbidden Role Hierarchy & Permission', () => {
-        it.each([
-          { actorRole: () => employeeAuthHeader },
-          { actorRole: () => hrAuthHeader },
-        ])(
+        it.each([{ actorRole: UserRole.EMPLOYEE }, { actorRole: UserRole.HR }])(
           'should FORBID $actorRole from changing a user role (Permission Denied)',
           async ({ actorRole }) => {
             const uniqueId = crypto.randomUUID().slice(0, 8);
@@ -1168,7 +1322,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/role`)
-              .set(actorRole())
+              .set(authHeaders[actorRole])
               .send({ role: UserRole.HR })
               .expect(403);
 
@@ -1176,6 +1330,7 @@ describe('Users (E2E)', () => {
               statusCode: 403,
               error: 'USER_PERMISSION_DENIED',
               message: expect.any(String),
+              path: `/users/${user.id}/role`,
               timestamp: expect.any(String),
             });
 
@@ -1188,34 +1343,34 @@ describe('Users (E2E)', () => {
       it.each([
         // Invalid Target (actor rank <= target rank)
         {
-          actorRole: () => adminAuthHeader,
+          actorRole: UserRole.ADMIN,
           targetRole: UserRole.ROOT,
           newRole: UserRole.EMPLOYEE,
         },
         {
-          actorRole: () => adminAuthHeader,
+          actorRole: UserRole.ADMIN,
           targetRole: UserRole.ADMIN,
           newRole: UserRole.HR,
         },
 
         // Invalid New Role (actor rank <= new role rank)
         {
-          actorRole: () => adminAuthHeader,
+          actorRole: UserRole.ADMIN,
           targetRole: UserRole.EMPLOYEE,
           newRole: UserRole.ROOT,
         },
         {
-          actorRole: () => adminAuthHeader,
+          actorRole: UserRole.ADMIN,
           targetRole: UserRole.EMPLOYEE,
           newRole: UserRole.ADMIN,
         },
         {
-          actorRole: () => adminAuthHeader,
+          actorRole: UserRole.ADMIN,
           targetRole: UserRole.HR,
           newRole: UserRole.ROOT,
         },
         {
-          actorRole: () => adminAuthHeader,
+          actorRole: UserRole.ADMIN,
           targetRole: UserRole.HR,
           newRole: UserRole.ADMIN,
         },
@@ -1231,7 +1386,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set(actorRole())
+            .set(authHeaders[actorRole])
             .send({ role: newRole })
             .expect(403);
 
@@ -1239,6 +1394,7 @@ describe('Users (E2E)', () => {
             statusCode: 403,
             error: 'USER_HIERARCHY_VIOLATION',
             message: expect.any(String),
+            path: `/users/${user.id}/role`,
             timestamp: expect.any(String),
           });
 
@@ -1268,6 +1424,7 @@ describe('Users (E2E)', () => {
             statusCode: 400,
             error: 'SELF_ROLE_CHANGE_NOT_ALLOWED',
             message: expect.any(String),
+            path: `/users/${user.id}/role`,
             timestamp: expect.any(String),
           });
 
@@ -1277,13 +1434,13 @@ describe('Users (E2E)', () => {
       );
 
       it.each([
-        { actorRole: () => rootAuthHeader, currentRole: UserRole.ROOT },
-        { actorRole: () => rootAuthHeader, currentRole: UserRole.ADMIN },
-        { actorRole: () => rootAuthHeader, currentRole: UserRole.HR },
-        { actorRole: () => rootAuthHeader, currentRole: UserRole.EMPLOYEE },
+        { actorRole: UserRole.ROOT, currentRole: UserRole.ROOT },
+        { actorRole: UserRole.ROOT, currentRole: UserRole.ADMIN },
+        { actorRole: UserRole.ROOT, currentRole: UserRole.HR },
+        { actorRole: UserRole.ROOT, currentRole: UserRole.EMPLOYEE },
 
-        { actorRole: () => adminAuthHeader, currentRole: UserRole.HR },
-        { actorRole: () => adminAuthHeader, currentRole: UserRole.EMPLOYEE },
+        { actorRole: UserRole.ADMIN, currentRole: UserRole.HR },
+        { actorRole: UserRole.ADMIN, currentRole: UserRole.EMPLOYEE },
       ])(
         'should return 400 when $actorRole tries to change $currentRole to the same role',
         async ({ actorRole, currentRole }) => {
@@ -1297,7 +1454,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set(actorRole())
+            .set(authHeaders[actorRole])
             .send({ role: currentRole })
             .expect(400);
 
@@ -1305,6 +1462,7 @@ describe('Users (E2E)', () => {
             statusCode: 400,
             error: 'USER_ROLE_UNCHANGED',
             message: expect.stringContaining(user.id),
+            path: `/users/${user.id}/role`,
             timestamp: expect.any(String),
           });
 
@@ -1324,7 +1482,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set(rootAuthHeader)
+            .set(authHeaders[UserRole.ROOT])
             .send({})
             .expect(400);
 
@@ -1339,6 +1497,7 @@ describe('Users (E2E)', () => {
                 message: expect.any(String),
               },
             ]),
+            path: `/users/${user.id}/role`,
           });
         });
 
@@ -1350,7 +1509,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set(rootAuthHeader)
+            .set(authHeaders[UserRole.ROOT])
             .send({ role: 'SUPERADMIN' })
             .expect(400);
 
@@ -1365,6 +1524,7 @@ describe('Users (E2E)', () => {
                 message: expect.any(String),
               },
             ]),
+            path: `/users/${user.id}/role`,
           });
         });
       });
@@ -1373,7 +1533,7 @@ describe('Users (E2E)', () => {
         it('should return 400 when id is not a valid UUID', async () => {
           const response = await request(server)
             .patch('/users/not-a-uuid/role')
-            .set(rootAuthHeader)
+            .set(authHeaders[UserRole.ROOT])
             .send({ role: UserRole.ADMIN })
             .expect(400);
 
@@ -1381,6 +1541,7 @@ describe('Users (E2E)', () => {
             statusCode: 400,
             message: expect.any(String),
             error: 'Bad Request',
+            path: `/users/not-a-uuid/role`,
             timestamp: expect.any(String),
           });
         });
@@ -1393,7 +1554,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${nonExistentId}/role`)
-          .set(rootAuthHeader)
+          .set(authHeaders[UserRole.ROOT])
           .send({ role: UserRole.ADMIN })
           .expect(404);
 
@@ -1401,6 +1562,7 @@ describe('Users (E2E)', () => {
           statusCode: 404,
           error: 'USER_NOT_FOUND',
           message: expect.stringMatching(/not found/i),
+          path: `/users/${nonExistentId}/role`,
           timestamp: expect.any(String),
         });
       });
