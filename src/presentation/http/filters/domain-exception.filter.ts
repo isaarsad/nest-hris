@@ -83,6 +83,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       ...errorBody,
+      path: url,
       timestamp: new Date().toISOString(),
     });
   }
