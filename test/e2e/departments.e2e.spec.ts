@@ -51,6 +51,41 @@ describe('Departments (E2E)', () => {
     await departmentHelper.clear();
   });
 
+  // ============================================================
+  // Sanity Check: Module-Level Auth Guard
+  // ============================================================
+  describe('Authentication Guard (401 Unauthorized)', () => {
+    it('should return 401 when Authorization header is missing', async () => {
+      const response = await request(server).get('/departments').expect(401);
+
+      expect(response.body).toMatchObject({
+        statusCode: 401,
+        error: 'TOKEN_INVALID',
+        message: expect.any(String),
+        path: '/departments',
+        timestamp: expect.any(String),
+      });
+    });
+
+    it('should return 401 when token is malformed or invalid', async () => {
+      const response = await request(server)
+        .get('/departments')
+        .set({ Authorization: 'Bearer random-garbage-jwt' })
+        .expect(401);
+
+      expect(response.body).toMatchObject({
+        statusCode: 401,
+        error: 'TOKEN_INVALID',
+        message: expect.any(String),
+        path: '/departments',
+        timestamp: expect.any(String),
+      });
+    });
+  });
+
+  // ============================================================
+  // POST /departments — Create Department
+  // ============================================================
   describe('POST /departments', () => {
     describe('Success cases', () => {
       it('should respond 201 and return the created department on valid payload', async () => {
@@ -168,39 +203,6 @@ describe('Departments (E2E)', () => {
 
         expect(response.body.parentDepartmentId).toBeNull();
         expect(response.body.headEmployeeId).toBeNull();
-      });
-    });
-
-    describe('Authentication Guard (401 Unauthorized)', () => {
-      it('should return 401 when Authorization header is missing', async () => {
-        const response = await request(server)
-          .post('/departments')
-          .send({ name: 'Finance', code: 'FIN' })
-          .expect(401);
-
-        expect(response.body).toMatchObject({
-          statusCode: 401,
-          error: 'TOKEN_INVALID',
-          message: expect.any(String),
-          path: '/departments',
-          timestamp: expect.any(String),
-        });
-      });
-
-      it('should return 401 when token is malformed or invalid', async () => {
-        const response = await request(server)
-          .post('/departments')
-          .set({ Authorization: 'Bearer this-is-obviously-a-fake-token' })
-          .send({ name: 'Finance', code: 'FIN' })
-          .expect(401);
-
-        expect(response.body).toMatchObject({
-          statusCode: 401,
-          error: 'TOKEN_INVALID',
-          message: expect.any(String),
-          path: '/departments',
-          timestamp: expect.any(String),
-        });
       });
     });
 
@@ -521,7 +523,7 @@ describe('Departments (E2E)', () => {
   });
 
   // ============================================================
-  // GET /departments — Get All Departments // After user and auth
+  // GET /departments — Get All Departments
   // ============================================================
   describe('GET /departments', () => {
     describe('Success cases', () => {
@@ -614,35 +616,6 @@ describe('Departments (E2E)', () => {
         expect(names[0]).toBe('Alpha Dept');
         expect(names[1]).toBe('Zebra Dept');
         expect(names[2]).toBe('Inactive Dept');
-      });
-    });
-
-    describe('Authentication Guard (401 Unauthorized)', () => {
-      it('should return 401 when Authorization header is missing', async () => {
-        const response = await request(server).get('/departments').expect(401);
-
-        expect(response.body).toMatchObject({
-          statusCode: 401,
-          error: 'TOKEN_INVALID',
-          message: expect.any(String),
-          path: '/departments',
-          timestamp: expect.any(String),
-        });
-      });
-
-      it('should return 401 when token is malformed or invalid', async () => {
-        const response = await request(server)
-          .get('/departments')
-          .set({ Authorization: 'Bearer random-garbage-jwt' })
-          .expect(401);
-
-        expect(response.body).toMatchObject({
-          statusCode: 401,
-          error: 'TOKEN_INVALID',
-          message: expect.any(String),
-          path: '/departments',
-          timestamp: expect.any(String),
-        });
       });
     });
 
