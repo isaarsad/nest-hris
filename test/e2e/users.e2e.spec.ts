@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module.js';
 import { UserTableTestHelper } from '../helpers/user-table-test.helper.js';
 import { UserRole } from '../../src/domain/users/user-role-permissions.js';
+import { createAuthHeader } from '../helpers/auth-token-test.helper.js';
 import { Server } from 'http';
 
 describe('Users (E2E)', () => {
@@ -12,6 +13,10 @@ describe('Users (E2E)', () => {
   let server: Server;
   let dataSource: DataSource;
   let userHelper: UserTableTestHelper;
+  let rootAuthHeader: Record<string, string>;
+  let adminAuthHeader: Record<string, string>;
+  let hrAuthHeader: Record<string, string>;
+  let employeeAuthHeader: Record<string, string>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -25,6 +30,17 @@ describe('Users (E2E)', () => {
 
     dataSource = moduleFixture.get<DataSource>(DataSource);
     userHelper = new UserTableTestHelper(dataSource);
+
+    rootAuthHeader = await createAuthHeader(crypto.randomUUID(), UserRole.ROOT);
+    adminAuthHeader = await createAuthHeader(
+      crypto.randomUUID(),
+      UserRole.ADMIN,
+    );
+    hrAuthHeader = await createAuthHeader(crypto.randomUUID(), UserRole.HR);
+    employeeAuthHeader = await createAuthHeader(
+      crypto.randomUUID(),
+      UserRole.EMPLOYEE,
+    );
   });
 
   afterAll(async () => {
@@ -50,6 +66,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
+          .set(rootAuthHeader)
           .send(payload)
           .expect(201);
 
@@ -84,13 +101,13 @@ describe('Users (E2E)', () => {
     describe('Role Permission & Hierarchy Rules', () => {
       describe('Allowed Role Hierarchy Creation', () => {
         it.each([
-          { creatorRole: UserRole.ROOT, targetRole: UserRole.ROOT },
-          { creatorRole: UserRole.ROOT, targetRole: UserRole.ADMIN },
-          { creatorRole: UserRole.ROOT, targetRole: UserRole.HR },
-          { creatorRole: UserRole.ROOT, targetRole: UserRole.EMPLOYEE },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.HR },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.EMPLOYEE },
-          { creatorRole: UserRole.HR, targetRole: UserRole.EMPLOYEE },
+          { creatorRole: () => rootAuthHeader, targetRole: UserRole.ROOT },
+          { creatorRole: () => rootAuthHeader, targetRole: UserRole.ADMIN },
+          { creatorRole: () => rootAuthHeader, targetRole: UserRole.HR },
+          { creatorRole: () => rootAuthHeader, targetRole: UserRole.EMPLOYEE },
+          { creatorRole: () => adminAuthHeader, targetRole: UserRole.HR },
+          { creatorRole: () => adminAuthHeader, targetRole: UserRole.EMPLOYEE },
+          { creatorRole: () => hrAuthHeader, targetRole: UserRole.EMPLOYEE },
         ])(
           'should ALLOW $creatorRole to create a user with role $targetRole',
           async ({ creatorRole, targetRole }) => {
@@ -104,7 +121,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .post('/users')
-              .set('x-user-role', creatorRole)
+              .set(creatorRole())
               .send(payload)
               .expect(201);
 
@@ -150,7 +167,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .post('/users')
-              .set('x-user-role', UserRole.EMPLOYEE)
+              .set(employeeAuthHeader)
               .send(payload)
               .expect(403);
 
@@ -167,11 +184,11 @@ describe('Users (E2E)', () => {
         );
 
         it.each([
-          { creatorRole: UserRole.HR, targetRole: UserRole.ROOT },
-          { creatorRole: UserRole.HR, targetRole: UserRole.ADMIN },
-          { creatorRole: UserRole.HR, targetRole: UserRole.HR },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.ROOT },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.ADMIN },
+          { creatorRole: () => hrAuthHeader, targetRole: UserRole.ROOT },
+          { creatorRole: () => hrAuthHeader, targetRole: UserRole.ADMIN },
+          { creatorRole: () => hrAuthHeader, targetRole: UserRole.HR },
+          { creatorRole: () => adminAuthHeader, targetRole: UserRole.ROOT },
+          { creatorRole: () => adminAuthHeader, targetRole: UserRole.ADMIN },
         ])(
           'should FORBID $creatorRole from creating a user with role $targetRole (Hierarchy Violation)',
           async ({ creatorRole, targetRole }) => {
@@ -185,7 +202,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .post('/users')
-              .set('x-user-role', creatorRole)
+              .set(creatorRole())
               .send(payload)
               .expect(403);
 
@@ -296,6 +313,7 @@ describe('Users (E2E)', () => {
         async ({ payload, expectedError }) => {
           const response = await request(server)
             .post('/users')
+            .set(rootAuthHeader)
             .send(payload)
             .expect(400);
 
@@ -325,6 +343,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
+          .set(rootAuthHeader)
           .send({
             username: 'john_doe',
             email: 'new_john@example.com',
@@ -353,6 +372,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
+          .set(rootAuthHeader)
           .send({
             username: 'new_johndoe',
             email: 'johndoe@example.com',
@@ -380,6 +400,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
+          .set(rootAuthHeader)
           .send({
             username: 'ExistingUser',
             email: 'new@example.com',
@@ -404,6 +425,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .post('/users')
+          .set(rootAuthHeader)
           .send({
             username: 'brandnewuser',
             email: 'Taken@Example.com',
@@ -428,7 +450,10 @@ describe('Users (E2E)', () => {
   describe('GET /users', () => {
     describe('Success cases', () => {
       it('should return an empty array when no users exist', async () => {
-        const response = await request(server).get('/users').expect(200);
+        const response = await request(server)
+          .get('/users')
+          .set(rootAuthHeader)
+          .expect(200);
 
         expect(response.body).toEqual([]);
       });
@@ -445,7 +470,10 @@ describe('Users (E2E)', () => {
           role: UserRole.EMPLOYEE,
         });
 
-        const response = await request(server).get('/users').expect(200);
+        const response = await request(server)
+          .get('/users')
+          .set(rootAuthHeader)
+          .expect(200);
 
         expect(response.body).toHaveLength(2);
 
@@ -492,7 +520,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .get('/users')
-              .set('x-user-role', role)
+              .set(await createAuthHeader(crypto.randomUUID(), role))
               .expect(200);
 
             expect(response.body).toHaveLength(2);
@@ -514,7 +542,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .get('/users')
-            .set('x-user-role', UserRole.EMPLOYEE)
+            .set(employeeAuthHeader)
             .expect(403);
 
           expect(response.body).toMatchObject({
@@ -525,7 +553,10 @@ describe('Users (E2E)', () => {
           });
         });
 
-        it.each([{ role: UserRole.ROOT }, { role: UserRole.ADMIN }])(
+        it.each([
+          { role: () => rootAuthHeader },
+          { role: () => adminAuthHeader },
+        ])(
           'should include soft-deleted users when requested by $role',
           async ({ role }) => {
             await userHelper.insert({
@@ -541,7 +572,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .get('/users')
-              .set('x-user-role', role)
+              .set(role())
               .expect(200);
 
             expect(response.body).toHaveLength(2);
@@ -569,7 +600,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .get('/users')
-            .set('x-user-role', UserRole.HR)
+            .set(hrAuthHeader)
             .expect(200);
 
           expect(response.body).toHaveLength(1);
@@ -595,7 +626,10 @@ describe('Users (E2E)', () => {
           isActive: false,
         });
 
-        await request(server).patch(`/users/${user.id}/activate`).expect(204);
+        await request(server)
+          .patch(`/users/${user.id}/activate`)
+          .set(rootAuthHeader)
+          .expect(204);
 
         const raw = await userHelper.findByIdRaw(user.id);
         expect(raw).toMatchObject({
@@ -610,13 +644,13 @@ describe('Users (E2E)', () => {
     describe('Role Permission & Hierarchy Rules', () => {
       describe('Allowed Role Hierarchy Activation', () => {
         it.each([
-          { actorRole: UserRole.ROOT, targetRole: UserRole.ROOT },
-          { actorRole: UserRole.ROOT, targetRole: UserRole.ADMIN },
-          { actorRole: UserRole.ROOT, targetRole: UserRole.HR },
-          { actorRole: UserRole.ROOT, targetRole: UserRole.EMPLOYEE },
-          { actorRole: UserRole.ADMIN, targetRole: UserRole.HR },
-          { actorRole: UserRole.ADMIN, targetRole: UserRole.EMPLOYEE },
-          { actorRole: UserRole.HR, targetRole: UserRole.EMPLOYEE },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.ROOT },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.ADMIN },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.HR },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.EMPLOYEE },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.HR },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.EMPLOYEE },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.EMPLOYEE },
         ])(
           'should ALLOW $actorRole to activate a user with role $targetRole',
           async ({ actorRole, targetRole }) => {
@@ -630,7 +664,7 @@ describe('Users (E2E)', () => {
 
             await request(server)
               .patch(`/users/${user.id}/activate`)
-              .set('x-user-role', actorRole)
+              .set(actorRole())
               .expect(204);
 
             const raw = await userHelper.findByIdRaw(user.id);
@@ -658,7 +692,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/activate`)
-              .set('x-user-role', UserRole.EMPLOYEE)
+              .set(employeeAuthHeader)
               .expect(403);
 
             expect(response.body).toMatchObject({
@@ -674,14 +708,14 @@ describe('Users (E2E)', () => {
         );
 
         it.each([
-          { creatorRole: UserRole.HR, targetRole: UserRole.ROOT },
-          { creatorRole: UserRole.HR, targetRole: UserRole.ADMIN },
-          { creatorRole: UserRole.HR, targetRole: UserRole.HR },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.ROOT },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.ADMIN },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.ROOT },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.ADMIN },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.HR },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.ROOT },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.ADMIN },
         ])(
-          'should FORBID $creatorRole from activating user with role $targetRole (Hierarchy Violation)',
-          async ({ creatorRole, targetRole }) => {
+          'should FORBID $actorRole from activating user with role $targetRole (Hierarchy Violation)',
+          async ({ actorRole, targetRole }) => {
             const uniqueId = crypto.randomUUID().slice(0, 8);
             const user = await userHelper.insert({
               username: `forbidden_${uniqueId}`,
@@ -692,7 +726,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/activate`)
-              .set('x-user-role', creatorRole)
+              .set(actorRole())
               .expect(403);
 
             expect(response.body).toMatchObject({
@@ -719,6 +753,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${user.id}/activate`)
+          .set(rootAuthHeader)
           .expect(409);
 
         expect(response.body).toMatchObject({
@@ -735,6 +770,7 @@ describe('Users (E2E)', () => {
       it('should return 400 when id is not a valid UUID', async () => {
         const response = await request(server)
           .patch('/users/invalid-uuid/activate')
+          .set(rootAuthHeader)
           .expect(400);
 
         expect(response.body).toMatchObject({
@@ -750,6 +786,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${nonExistentId}/activate`)
+          .set(rootAuthHeader)
           .expect(404);
 
         expect(response.body).toMatchObject({
@@ -774,7 +811,10 @@ describe('Users (E2E)', () => {
           isActive: true,
         });
 
-        await request(server).patch(`/users/${user.id}/deactivate`).expect(204);
+        await request(server)
+          .patch(`/users/${user.id}/deactivate`)
+          .set(rootAuthHeader)
+          .expect(204);
 
         const raw = await userHelper.findByIdRaw(user.id);
         expect(raw).toMatchObject({
@@ -789,13 +829,13 @@ describe('Users (E2E)', () => {
     describe('Role Permission & Hierarchy Rules', () => {
       describe('Allowed Role Hierarchy Deactivation', () => {
         it.each([
-          { actorRole: UserRole.ROOT, targetRole: UserRole.ROOT },
-          { actorRole: UserRole.ROOT, targetRole: UserRole.ADMIN },
-          { actorRole: UserRole.ROOT, targetRole: UserRole.HR },
-          { actorRole: UserRole.ROOT, targetRole: UserRole.EMPLOYEE },
-          { actorRole: UserRole.ADMIN, targetRole: UserRole.HR },
-          { actorRole: UserRole.ADMIN, targetRole: UserRole.EMPLOYEE },
-          { actorRole: UserRole.HR, targetRole: UserRole.EMPLOYEE },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.ROOT },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.ADMIN },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.HR },
+          { actorRole: () => rootAuthHeader, targetRole: UserRole.EMPLOYEE },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.HR },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.EMPLOYEE },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.EMPLOYEE },
         ])(
           'should ALLOW $actorRole to deactivate a user with role $targetRole',
           async ({ actorRole, targetRole }) => {
@@ -809,7 +849,7 @@ describe('Users (E2E)', () => {
 
             await request(server)
               .patch(`/users/${user.id}/deactivate`)
-              .set('x-user-role', actorRole)
+              .set(actorRole())
               .expect(204);
 
             const raw = await userHelper.findByIdRaw(user.id);
@@ -837,7 +877,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/deactivate`)
-              .set('x-user-role', UserRole.EMPLOYEE)
+              .set(employeeAuthHeader)
               .expect(403);
 
             expect(response.body).toMatchObject({
@@ -853,14 +893,14 @@ describe('Users (E2E)', () => {
         );
 
         it.each([
-          { creatorRole: UserRole.HR, targetRole: UserRole.ROOT },
-          { creatorRole: UserRole.HR, targetRole: UserRole.ADMIN },
-          { creatorRole: UserRole.HR, targetRole: UserRole.HR },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.ROOT },
-          { creatorRole: UserRole.ADMIN, targetRole: UserRole.ADMIN },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.ROOT },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.ADMIN },
+          { actorRole: () => hrAuthHeader, targetRole: UserRole.HR },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.ROOT },
+          { actorRole: () => adminAuthHeader, targetRole: UserRole.ADMIN },
         ])(
-          'should FORBID $creatorRole from deactivating user with role $targetRole (Hierarchy Violation)',
-          async ({ creatorRole, targetRole }) => {
+          'should FORBID $actorRole from deactivating user with role $targetRole (Hierarchy Violation)',
+          async ({ actorRole, targetRole }) => {
             const uniqueId = crypto.randomUUID().slice(0, 8);
             const user = await userHelper.insert({
               username: `forbidden_${uniqueId}`,
@@ -871,7 +911,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/deactivate`)
-              .set('x-user-role', creatorRole)
+              .set(actorRole())
               .expect(403);
 
             expect(response.body).toMatchObject({
@@ -905,8 +945,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/deactivate`)
-            .set('x-user-id', user.id)
-            .set('x-user-role', actorRole)
+            .set(await createAuthHeader(user.id, actorRole))
             .expect(400);
 
           expect(response.body).toMatchObject({
@@ -930,6 +969,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${user.id}/deactivate`)
+          .set(rootAuthHeader)
           .expect(409);
 
         expect(response.body).toMatchObject({
@@ -946,6 +986,7 @@ describe('Users (E2E)', () => {
       it('should return 400 when id is not a valid UUID', async () => {
         const response = await request(server)
           .patch('/users/not-a-uuid/deactivate')
+          .set(rootAuthHeader)
           .expect(400);
 
         expect(response.body).toMatchObject({
@@ -961,6 +1002,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${nonExistentId}/deactivate`)
+          .set(rootAuthHeader)
           .expect(404);
 
         expect(response.body).toMatchObject({
@@ -987,6 +1029,7 @@ describe('Users (E2E)', () => {
 
         await request(server)
           .patch(`/users/${user.id}/role`)
+          .set(rootAuthHeader)
           .send({ role: UserRole.HR })
           .expect(204);
 
@@ -1008,68 +1051,68 @@ describe('Users (E2E)', () => {
           // ==========================================
           // Target: ROOT
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.ROOT,
             newRole: UserRole.ADMIN,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.ROOT,
             newRole: UserRole.HR,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.ROOT,
             newRole: UserRole.EMPLOYEE,
           },
 
           // Target: ADMIN
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.ADMIN,
             newRole: UserRole.ROOT,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.ADMIN,
             newRole: UserRole.HR,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.ADMIN,
             newRole: UserRole.EMPLOYEE,
           },
 
           // Target: HR
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.HR,
             newRole: UserRole.ROOT,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.HR,
             newRole: UserRole.ADMIN,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.HR,
             newRole: UserRole.EMPLOYEE,
           },
 
           // Target: EMPLOYEE
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.ROOT,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.ADMIN,
           },
           {
-            changerRole: UserRole.ROOT,
+            actorRole: () => rootAuthHeader,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.HR,
           },
@@ -1078,18 +1121,18 @@ describe('Users (E2E)', () => {
           // ADMIN (Can only manage HR <-> EMPLOYEE)
           // ==========================================
           {
-            changerRole: UserRole.ADMIN,
+            actorRole: () => adminAuthHeader,
             targetRole: UserRole.EMPLOYEE,
             newRole: UserRole.HR,
           },
           {
-            changerRole: UserRole.ADMIN,
+            actorRole: () => adminAuthHeader,
             targetRole: UserRole.HR,
             newRole: UserRole.EMPLOYEE,
           },
         ])(
-          'should ALLOW $changerRole to change $targetRole to $newRole',
-          async ({ changerRole, targetRole, newRole }) => {
+          'should ALLOW $actorRole to change $targetRole to $newRole',
+          async ({ actorRole, targetRole, newRole }) => {
             const uniqueId = crypto.randomUUID().slice(0, 8);
             const user = await userHelper.insert({
               username: `user_${uniqueId}`,
@@ -1099,7 +1142,7 @@ describe('Users (E2E)', () => {
 
             await request(server)
               .patch(`/users/${user.id}/role`)
-              .set('x-user-role', changerRole)
+              .set(actorRole())
               .send({ role: newRole })
               .expect(204);
 
@@ -1111,11 +1154,11 @@ describe('Users (E2E)', () => {
 
       describe('Forbidden Role Hierarchy & Permission', () => {
         it.each([
-          { changerRole: UserRole.EMPLOYEE },
-          { changerRole: UserRole.HR },
+          { actorRole: () => employeeAuthHeader },
+          { actorRole: () => hrAuthHeader },
         ])(
-          'should FORBID $changerRole from changing a user role (Permission Denied)',
-          async ({ changerRole }) => {
+          'should FORBID $actorRole from changing a user role (Permission Denied)',
+          async ({ actorRole }) => {
             const uniqueId = crypto.randomUUID().slice(0, 8);
             const user = await userHelper.insert({
               username: `permfail_${uniqueId}`,
@@ -1125,7 +1168,7 @@ describe('Users (E2E)', () => {
 
             const response = await request(server)
               .patch(`/users/${user.id}/role`)
-              .set('x-user-role', changerRole)
+              .set(actorRole())
               .send({ role: UserRole.HR })
               .expect(403);
 
@@ -1145,40 +1188,40 @@ describe('Users (E2E)', () => {
       it.each([
         // Invalid Target (actor rank <= target rank)
         {
-          changerRole: UserRole.ADMIN,
+          actorRole: () => adminAuthHeader,
           targetRole: UserRole.ROOT,
           newRole: UserRole.EMPLOYEE,
         },
         {
-          changerRole: UserRole.ADMIN,
+          actorRole: () => adminAuthHeader,
           targetRole: UserRole.ADMIN,
           newRole: UserRole.HR,
         },
 
         // Invalid New Role (actor rank <= new role rank)
         {
-          changerRole: UserRole.ADMIN,
+          actorRole: () => adminAuthHeader,
           targetRole: UserRole.EMPLOYEE,
           newRole: UserRole.ROOT,
         },
         {
-          changerRole: UserRole.ADMIN,
+          actorRole: () => adminAuthHeader,
           targetRole: UserRole.EMPLOYEE,
           newRole: UserRole.ADMIN,
         },
         {
-          changerRole: UserRole.ADMIN,
+          actorRole: () => adminAuthHeader,
           targetRole: UserRole.HR,
           newRole: UserRole.ROOT,
         },
         {
-          changerRole: UserRole.ADMIN,
+          actorRole: () => adminAuthHeader,
           targetRole: UserRole.HR,
           newRole: UserRole.ADMIN,
         },
       ])(
-        'should FORBID $changerRole from changing $targetRole to $newRole (Hierarchy Violation)',
-        async ({ changerRole, targetRole, newRole }) => {
+        'should FORBID $actorRole from changing $targetRole to $newRole (Hierarchy Violation)',
+        async ({ actorRole, targetRole, newRole }) => {
           const uniqueId = crypto.randomUUID().slice(0, 8);
           const user = await userHelper.insert({
             username: `hierr_${uniqueId}`,
@@ -1188,7 +1231,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set('x-user-role', changerRole)
+            .set(actorRole())
             .send({ role: newRole })
             .expect(403);
 
@@ -1206,22 +1249,18 @@ describe('Users (E2E)', () => {
     });
 
     describe('Business rule errors', () => {
-      it.each([
-        { changerRole: UserRole.ROOT },
-        { changerRole: UserRole.ADMIN },
-      ])(
-        'should return 400 when $changerRole tries to change their own role',
-        async ({ changerRole }) => {
+      it.each([{ actorRole: UserRole.ROOT }, { actorRole: UserRole.ADMIN }])(
+        'should return 400 when $actorRole tries to change their own role',
+        async ({ actorRole }) => {
           const user = await userHelper.insert({
-            username: `self_${changerRole}`,
-            email: `self_${changerRole}@example.com`,
-            role: changerRole,
+            username: `self_${actorRole}`,
+            email: `self_${actorRole}@example.com`,
+            role: actorRole,
           });
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set('x-user-id', user.id)
-            .set('x-user-role', changerRole)
+            .set(await createAuthHeader(user.id, actorRole))
             .send({ role: UserRole.EMPLOYEE })
             .expect(400);
 
@@ -1233,22 +1272,21 @@ describe('Users (E2E)', () => {
           });
 
           const raw = await userHelper.findByIdRaw(user.id);
-          expect(raw!.role).toBe(changerRole);
+          expect(raw!.role).toBe(actorRole);
         },
       );
 
       it.each([
-        { changerRole: UserRole.ROOT, currentRole: UserRole.ROOT },
-        { changerRole: UserRole.ROOT, currentRole: UserRole.ADMIN },
-        { changerRole: UserRole.ROOT, currentRole: UserRole.HR },
-        { changerRole: UserRole.ROOT, currentRole: UserRole.EMPLOYEE },
+        { actorRole: () => rootAuthHeader, currentRole: UserRole.ROOT },
+        { actorRole: () => rootAuthHeader, currentRole: UserRole.ADMIN },
+        { actorRole: () => rootAuthHeader, currentRole: UserRole.HR },
+        { actorRole: () => rootAuthHeader, currentRole: UserRole.EMPLOYEE },
 
-        { changerRole: UserRole.ADMIN, currentRole: UserRole.HR },
-        { changerRole: UserRole.ADMIN, currentRole: UserRole.EMPLOYEE },
+        { actorRole: () => adminAuthHeader, currentRole: UserRole.HR },
+        { actorRole: () => adminAuthHeader, currentRole: UserRole.EMPLOYEE },
       ])(
-        'should return 400 when $changerRole tries to change $currentRole to the same role',
-        async ({ changerRole, currentRole }) => {
-          const actorId = crypto.randomUUID();
+        'should return 400 when $actorRole tries to change $currentRole to the same role',
+        async ({ actorRole, currentRole }) => {
           const uniqueId = crypto.randomUUID().slice(0, 8);
 
           const user = await userHelper.insert({
@@ -1259,8 +1297,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set('x-user-id', actorId)
-            .set('x-user-role', changerRole)
+            .set(actorRole())
             .send({ role: currentRole })
             .expect(400);
 
@@ -1287,7 +1324,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set('x-user-role', UserRole.ROOT)
+            .set(rootAuthHeader)
             .send({})
             .expect(400);
 
@@ -1313,7 +1350,7 @@ describe('Users (E2E)', () => {
 
           const response = await request(server)
             .patch(`/users/${user.id}/role`)
-            .set('x-user-role', UserRole.ROOT)
+            .set(rootAuthHeader)
             .send({ role: 'SUPERADMIN' })
             .expect(400);
 
@@ -1336,7 +1373,7 @@ describe('Users (E2E)', () => {
         it('should return 400 when id is not a valid UUID', async () => {
           const response = await request(server)
             .patch('/users/not-a-uuid/role')
-            .set('x-user-role', UserRole.ROOT)
+            .set(rootAuthHeader)
             .send({ role: UserRole.ADMIN })
             .expect(400);
 
@@ -1356,7 +1393,7 @@ describe('Users (E2E)', () => {
 
         const response = await request(server)
           .patch(`/users/${nonExistentId}/role`)
-          .set('x-user-role', UserRole.ROOT)
+          .set(rootAuthHeader)
           .send({ role: UserRole.ADMIN })
           .expect(404);
 
