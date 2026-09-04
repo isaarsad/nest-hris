@@ -19,7 +19,11 @@ import {
 
 // ─── Mock helpers ────────────────────────────────────────────────────────────
 
-const VALID_TOKEN_HASH = 'a'.repeat(64); // valid SHA-256 hex (64 lowercase hex chars)
+const VALID_TOKEN_HASH = 'a'.repeat(64);
+
+const NOW = new Date('2026-01-01T00:00:00.000Z');
+const IN_7_DAYS = new Date('2026-01-08T00:00:00.000Z');
+const IN_30_DAYS = new Date('2026-01-31T00:00:00.000Z');
 
 const makeUserRepository = (): UserRepository => ({
   save: vi.fn(),
@@ -57,12 +61,8 @@ const makeAccessTokenPort = (): AccessTokenPort => ({
 const makeRefreshTokenPort = (): RefreshTokenPort => ({
   generate: vi.fn().mockReturnValue('raw-refresh-token-abc'),
   hash: vi.fn().mockReturnValue(VALID_TOKEN_HASH),
-  getExpiresAt: vi
-    .fn()
-    .mockReturnValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), // 7 days from now
-  getAbsoluteExpiresAt: vi
-    .fn()
-    .mockReturnValue(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
+  getExpiresAt: vi.fn().mockReturnValue(IN_7_DAYS),
+  getAbsoluteExpiresAt: vi.fn().mockReturnValue(IN_30_DAYS),
 });
 
 const makeLoginCommand = (
@@ -103,6 +103,9 @@ describe('LoginUseCase', () => {
   let useCase: LoginUseCase;
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+
     userRepository = makeUserRepository();
     refreshTokenRepository = makeRefreshTokenRepository();
     idGenerator = makeIdGenerator();
@@ -118,6 +121,10 @@ describe('LoginUseCase', () => {
       accessTokenPort,
       refreshTokenPort,
     );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   // === INVALID CREDENTIALS ===
@@ -141,6 +148,7 @@ describe('LoginUseCase', () => {
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.hash).not.toHaveBeenCalled();
       expect(refreshTokenPort.getExpiresAt).not.toHaveBeenCalled();
+      expect(refreshTokenPort.getAbsoluteExpiresAt).not.toHaveBeenCalled();
       expect(idGenerator.generate).not.toHaveBeenCalled();
       expect(refreshTokenRepository.save).not.toHaveBeenCalled();
     });
@@ -162,6 +170,7 @@ describe('LoginUseCase', () => {
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.hash).not.toHaveBeenCalled();
       expect(refreshTokenPort.getExpiresAt).not.toHaveBeenCalled();
+      expect(refreshTokenPort.getAbsoluteExpiresAt).not.toHaveBeenCalled();
       expect(idGenerator.generate).not.toHaveBeenCalled();
       expect(refreshTokenRepository.save).not.toHaveBeenCalled();
     });
@@ -182,6 +191,7 @@ describe('LoginUseCase', () => {
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.hash).not.toHaveBeenCalled();
       expect(refreshTokenPort.getExpiresAt).not.toHaveBeenCalled();
+      expect(refreshTokenPort.getAbsoluteExpiresAt).not.toHaveBeenCalled();
       expect(idGenerator.generate).not.toHaveBeenCalled();
       expect(refreshTokenRepository.save).not.toHaveBeenCalled();
     });
@@ -204,6 +214,7 @@ describe('LoginUseCase', () => {
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.hash).not.toHaveBeenCalled();
       expect(refreshTokenPort.getExpiresAt).not.toHaveBeenCalled();
+      expect(refreshTokenPort.getAbsoluteExpiresAt).not.toHaveBeenCalled();
       expect(idGenerator.generate).not.toHaveBeenCalled();
       expect(refreshTokenRepository.save).not.toHaveBeenCalled();
     });
@@ -235,6 +246,29 @@ describe('LoginUseCase', () => {
       expect(refreshTokenPort.hash).toHaveBeenCalledExactlyOnceWith(
         'raw-refresh-token-abc',
       );
+      expect(refreshTokenPort.getExpiresAt).toHaveBeenCalledOnce();
+      expect(refreshTokenPort.getAbsoluteExpiresAt).toHaveBeenCalledOnce();
+
+      expect(accessTokenPort.generate).toHaveBeenCalledWith({
+        sub: user.id,
+        role: user.role,
+      });
+
+      expect(idGenerator.generate).toHaveBeenCalledOnce();
+
+      expect(refreshTokenRepository.save).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          id: 'refresh-token-id-123',
+          userId: user.id,
+          tokenHash: VALID_TOKEN_HASH,
+          expiresAt: IN_7_DAYS,
+          absoluteExpiresAt: IN_30_DAYS,
+          revokedAt: null,
+          replacedByTokenId: null,
+          createdAt: NOW,
+        }),
+      );
+
       expect(result).toEqual({
         accessToken: 'access-token-xyz',
         refreshToken: 'raw-refresh-token-abc',
@@ -245,27 +279,6 @@ describe('LoginUseCase', () => {
           role: user.role,
         },
       });
-      expect(refreshTokenPort.getExpiresAt).toHaveBeenCalledOnce();
-      expect(refreshTokenPort.getAbsoluteExpiresAt).toHaveBeenCalledOnce();
-
-      expect(accessTokenPort.generate).toHaveBeenCalledWith({
-        sub: user.id,
-        role: user.role,
-      });
-
-      expect(idGenerator.generate).toHaveBeenCalledOnce();
-      expect(refreshTokenRepository.save).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({
-          id: 'refresh-token-id-123',
-          userId: user.id,
-          tokenHash: VALID_TOKEN_HASH,
-          expiresAt: expect.any(Date),
-          absoluteExpiresAt: expect.any(Date),
-          revokedAt: null,
-          replacedByTokenId: null,
-          createdAt: expect.any(Date),
-        }),
-      );
     });
   });
 });
