@@ -63,8 +63,7 @@ export class RefreshTokenUseCase {
       expiresAt: nextExpiresAt,
     });
 
-    await this.refreshTokenRepository.save(revokedOldToken);
-    await this.refreshTokenRepository.save(newToken);
+    await this.refreshTokenRepository.rotate(revokedOldToken, newToken);
 
     const accessToken = await this.accessTokenPort.generate({
       sub: user.id,

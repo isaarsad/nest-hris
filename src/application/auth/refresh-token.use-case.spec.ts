@@ -57,6 +57,7 @@ const makeRefreshTokenRepository = (): RefreshTokenRepository => ({
   findByTokenHash: vi.fn(),
   revokeAllByUserId: vi.fn(),
   deleteExpired: vi.fn(),
+  rotate: vi.fn(),
 });
 
 const makeIdGenerator = (): IdGeneratorPort => ({
@@ -171,7 +172,7 @@ describe('RefreshTokenUseCase', () => {
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
-      expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
     });
   });
 
@@ -200,7 +201,7 @@ describe('RefreshTokenUseCase', () => {
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
-      expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
     });
   });
 
@@ -227,7 +228,7 @@ describe('RefreshTokenUseCase', () => {
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
-      expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
     });
   });
 
@@ -258,7 +259,7 @@ describe('RefreshTokenUseCase', () => {
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
-      expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
     });
   });
 
@@ -282,7 +283,7 @@ describe('RefreshTokenUseCase', () => {
       );
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
-      expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
     });
 
     it('should throw TokenInvalidError when user is soft-deleted', async () => {
@@ -307,7 +308,7 @@ describe('RefreshTokenUseCase', () => {
       );
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
-      expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
     });
   });
 
@@ -333,7 +334,7 @@ describe('RefreshTokenUseCase', () => {
       );
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
-      expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
     });
   });
 
@@ -395,12 +396,8 @@ describe('RefreshTokenUseCase', () => {
         role: user.role,
       });
 
-      // Two saves: revokedOldToken + newToken
-      expect(refreshTokenRepository.save).toHaveBeenCalledTimes(2);
-
-      // Revoked old token: must be revoked and point to the new token id
-      expect(refreshTokenRepository.save).toHaveBeenNthCalledWith(
-        1,
+      // Verify rotate is invoked atomically with both token entities
+      expect(refreshTokenRepository.rotate).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           id: validToken.id,
           userId: user.id,
@@ -411,11 +408,7 @@ describe('RefreshTokenUseCase', () => {
           replacedByTokenId: 'new-refresh-token-id-456',
           createdAt: validToken.createdAt,
         }),
-      );
-
-      // New token: active, linked to the same user, created at NOW
-      expect(refreshTokenRepository.save).toHaveBeenNthCalledWith(
-        2,
+        // New token: active, linked to the same user, created at NOW
         expect.objectContaining({
           id: 'new-refresh-token-id-456',
           userId: user.id,
@@ -457,11 +450,8 @@ describe('RefreshTokenUseCase', () => {
 
       await useCase.execute(makeRefreshTokenCommand());
 
-      expect(refreshTokenRepository.save).toHaveBeenCalledTimes(2);
-
-      // Second save: newToken must have its expiresAt capped at absoluteExpiresAt (IN_2_DAYS)
-      expect(refreshTokenRepository.save).toHaveBeenNthCalledWith(
-        2,
+      expect(refreshTokenRepository.rotate).toHaveBeenCalledExactlyOnceWith(
+        expect.any(RefreshToken),
         expect.objectContaining({
           id: 'new-refresh-token-id-456',
           userId: user.id,
