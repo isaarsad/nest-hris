@@ -25,6 +25,7 @@ export class RefreshTokenUseCase {
     private readonly idGenerator: IdGeneratorPort,
     private readonly accessTokenPort: AccessTokenPort,
     private readonly refreshTokenPort: RefreshTokenPort,
+    private readonly leewayMs: number = 5000,
   ) {}
 
   async execute(command: RefreshTokenCommand): Promise<RefreshTokenResult> {
@@ -36,7 +37,13 @@ export class RefreshTokenUseCase {
     }
 
     if (token.wasReusedAfterRevocation()) {
-      await this.refreshTokenRepository.revokeAllByUserId(token.userId);
+      const isOutsideLeeway =
+        Date.now() - token.revokedAt!.getTime() > this.leewayMs;
+
+      if (isOutsideLeeway) {
+        await this.refreshTokenRepository.revokeAllByUserId(token.userId);
+      }
+
       throw new TokenInvalidError();
     }
 

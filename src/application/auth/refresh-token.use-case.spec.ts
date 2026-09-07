@@ -40,6 +40,12 @@ const IN_2_DAYS = new Date('2026-01-03T00:00:00.000Z');
 const IN_1_DAY = new Date('2026-01-02T00:00:00.000Z');
 const ONE_MS_AGO = new Date(NOW.getTime() - 1);
 
+const DEFAULT_LEEWAY_MS = 5000;
+const REVOKED_OUTSIDE_LEEWAY = new Date(
+  NOW.getTime() - (DEFAULT_LEEWAY_MS + 1000),
+); // 6 seconds ago (> 5s)
+const REVOKED_WITHIN_LEEWAY = new Date(NOW.getTime() - 2000); // 2 seconds ago (<= 5s)
+
 const makeUserRepository = (): UserRepository => ({
   save: vi.fn(),
   findById: vi.fn(),
@@ -144,6 +150,7 @@ describe('RefreshTokenUseCase', () => {
       idGenerator,
       accessTokenPort,
       refreshTokenPort,
+      DEFAULT_LEEWAY_MS,
     );
   });
 
@@ -179,10 +186,10 @@ describe('RefreshTokenUseCase', () => {
   // === TOKEN REUSE DETECTION ===
 
   describe('Token reuse after revocation', () => {
-    it('should revoke all tokens for user and throw TokenInvalidError when a revoked (but non-expired) token is reused', async () => {
-      // Token is revoked but expiresAt is still in the future → wasReusedAfterRevocation() = true
+    it('should revoke all tokens for user and throw TokenInvalidError when token is reused OUTSIDE leeway window', async () => {
+      // Revoked 6 seconds ago (> 5000ms) -> Legitimate token theft scenario
       const reusedToken = makeRefreshToken({
-        revokedAt: new Date('2025-12-31T12:00:00.000Z'), // revoked yesterday
+        revokedAt: REVOKED_OUTSIDE_LEEWAY,
         replacedByTokenId: 'some-newer-token-id',
       });
 
@@ -195,9 +202,35 @@ describe('RefreshTokenUseCase', () => {
         TokenInvalidError,
       );
 
+      // Must execute nuclear option: destroy all user sessions
       expect(
         refreshTokenRepository.revokeAllByUserId,
       ).toHaveBeenCalledExactlyOnceWith(reusedToken.userId);
+
+      expect(userRepository.findById).not.toHaveBeenCalled();
+      expect(accessTokenPort.generate).not.toHaveBeenCalled();
+      expect(refreshTokenPort.generate).not.toHaveBeenCalled();
+      expect(refreshTokenRepository.rotate).not.toHaveBeenCalled();
+    });
+
+    it('should throw TokenInvalidError but NOT revoke all sessions when token is reused WITHIN leeway window', async () => {
+      // Revoked 2 seconds ago (<= 5000ms) -> Concurrent multi-tab or network retry race scenario
+      const reusedToken = makeRefreshToken({
+        revokedAt: REVOKED_WITHIN_LEEWAY,
+        replacedByTokenId: 'some-newer-token-id',
+      });
+
+      vi.mocked(refreshTokenPort.hash).mockReturnValue(VALID_TOKEN_HASH);
+      vi.mocked(refreshTokenRepository.findByTokenHash).mockResolvedValue(
+        reusedToken,
+      );
+
+      await expect(useCase.execute(makeRefreshTokenCommand())).rejects.toThrow(
+        TokenInvalidError,
+      );
+
+      // CRITICAL INVARIANT: revokeAllByUserId must NOT be called to protect legitimate active sessions
+      expect(refreshTokenRepository.revokeAllByUserId).not.toHaveBeenCalled();
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(accessTokenPort.generate).not.toHaveBeenCalled();
       expect(refreshTokenPort.generate).not.toHaveBeenCalled();
