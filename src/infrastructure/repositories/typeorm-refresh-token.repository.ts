@@ -5,7 +5,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { RefreshTokenOrmEntity } from '../database/entities/refresh-token.orm-entity.js';
 import { QueryFailedError, Repository } from 'typeorm';
 import { RefreshTokenMapper } from '../mappers/refresh-token.mapper.js';
-import { RefreshTokenAlreadyExistsError } from '../../domain/auth/errors/index.js';
+import {
+  RefreshTokenAlreadyExistsError,
+  TokenInvalidError,
+} from '../../domain/auth/errors/index.js';
 
 @Injectable()
 export class TypeOrmRefreshTokenRepository implements RefreshTokenRepository {
@@ -63,5 +66,46 @@ export class TypeOrmRefreshTokenRepository implements RefreshTokenRepository {
       .execute();
 
     return result.affected ?? 0;
+  }
+
+  async rotate(
+    revokedOldToken: RefreshToken,
+    newToken: RefreshToken,
+  ): Promise<void> {
+    try {
+      await this.refreshTokenRepository.manager.transaction(
+        async (txManager) => {
+          const updateResult = await txManager
+            .createQueryBuilder()
+            .update(RefreshTokenOrmEntity)
+            .set({
+              revokedAt: revokedOldToken.revokedAt,
+              replacedByTokenId: revokedOldToken.replacedByTokenId,
+            })
+            .where('id = :id', { id: revokedOldToken.id })
+            .andWhere('revoked_at IS NULL')
+            .execute();
+
+          if (updateResult.affected === 0) {
+            throw new TokenInvalidError();
+          }
+
+          const newOrmEntity = RefreshTokenMapper.toPersistence(newToken);
+          await txManager.save(RefreshTokenOrmEntity, newOrmEntity);
+        },
+      );
+    } catch (error) {
+      if (error instanceof QueryFailedError) {
+        const driverError = error.driverError as {
+          code?: string;
+          constraint?: string;
+        };
+        if (driverError.code === '23505') {
+          throw new RefreshTokenAlreadyExistsError(newToken.tokenHash);
+        }
+      }
+
+      throw error;
+    }
   }
 }

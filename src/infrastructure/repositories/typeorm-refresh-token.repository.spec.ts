@@ -8,7 +8,10 @@ import { TypeOrmRefreshTokenRepository } from './typeorm-refresh-token.repositor
 import { RefreshTokenTableTestHelper } from '../../../test/helpers/refresh-token-table-test.helper.js';
 import { UserTableTestHelper } from '../../../test/helpers/user-table-test.helper.js';
 import { RefreshToken } from '../../domain/auth/entities/refresh-token.entity.js';
-import { RefreshTokenAlreadyExistsError } from '../../domain/auth/errors/index.js';
+import {
+  RefreshTokenAlreadyExistsError,
+  TokenInvalidError,
+} from '../../domain/auth/errors/index.js';
 import { randomUUID } from 'crypto';
 
 describe('TypeOrmRefreshTokenRepository', () => {
@@ -326,6 +329,185 @@ describe('TypeOrmRefreshTokenRepository', () => {
 
       expect(deleted).toBe(0);
       expect(await helper.findByIdRaw(activeToken.id)).not.toBeNull();
+    });
+  });
+
+  // ─── rotate ──────────────────────────────────────────────────────────────────
+
+  describe('rotate()', () => {
+    it('should revoke the old token and persist the new token atomically', async () => {
+      const now = new Date();
+      const exp = new Date(now.getTime() + 1000 * 60 * 60);
+      const absExp = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30);
+
+      // Seed an active token to be rotated
+      const oldRaw = await helper.insert({
+        userId: seedUserId,
+        tokenHash: '1a'.padEnd(64, 'f'),
+        expiresAt: exp,
+        absoluteExpiresAt: absExp,
+      });
+
+      const oldToken = await repository.findById(oldRaw.id);
+      expect(oldToken).not.toBeNull();
+
+      const newToken = makeToken({ tokenHash: '2b'.padEnd(64, 'f') });
+
+      // Rotate: revoke oldToken and link it to newToken
+      const { revokedOldToken, newToken: rotatedNew } = oldToken!.rotate({
+        newId: newToken.id,
+        newTokenHash: newToken.tokenHash,
+        expiresAt: newToken.expiresAt,
+      });
+
+      await repository.rotate(revokedOldToken, rotatedNew);
+
+      // Old token should be revoked and point to the new token
+      const rawOld = await helper.findByIdRaw(oldRaw.id);
+      expect(rawOld).not.toBeNull();
+      expect(rawOld!.revokedAt).not.toBeNull();
+      expect(rawOld!.replacedByTokenId).toBe(rotatedNew.id);
+
+      // New token should be persisted
+      const rawNew = await helper.findByIdRaw(rotatedNew.id);
+      expect(rawNew).not.toBeNull();
+      expect(rawNew!.tokenHash).toBe(rotatedNew.tokenHash);
+      expect(rawNew!.userId).toBe(seedUserId);
+      expect(rawNew!.revokedAt).toBeNull();
+    });
+
+    it('should throw TokenInvalidError when the old token is already revoked', async () => {
+      const now = new Date();
+      const exp = new Date(now.getTime() + 1000 * 60 * 60);
+      const absExp = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30);
+      // Use a createdAt well in the past so revokedAt can safely be after it
+      const createdAt = new Date(now.getTime() - 2 * 60 * 1000); // 2 min ago
+      const revokedAt = new Date(now.getTime() - 1 * 60 * 1000); // 1 min ago
+
+      // Seed the token as already revoked directly in the DB
+      const alreadyRevokedRaw = await helper.insert({
+        userId: seedUserId,
+        tokenHash: '3c'.padEnd(64, 'f'),
+        expiresAt: exp,
+        absoluteExpiresAt: absExp,
+        createdAt,
+        revokedAt,
+      });
+
+      const newToken = makeToken({ tokenHash: '4d'.padEnd(64, 'f') });
+
+      // Build domain entity reflecting the already-revoked DB state
+      const fakeRevokedToken = new RefreshToken({
+        id: alreadyRevokedRaw.id,
+        userId: seedUserId,
+        tokenHash: alreadyRevokedRaw.tokenHash,
+        expiresAt: exp,
+        absoluteExpiresAt: absExp,
+        revokedAt,
+        replacedByTokenId: newToken.id,
+        createdAt,
+      });
+
+      await expect(
+        repository.rotate(fakeRevokedToken, newToken),
+      ).rejects.toThrow(TokenInvalidError);
+
+      // New token must NOT have been persisted (transaction rolled back)
+      expect(await helper.findByIdRaw(newToken.id)).toBeNull();
+    });
+
+    it('should throw RefreshTokenAlreadyExistsError when new token hash is duplicated', async () => {
+      const now = new Date();
+      const exp = new Date(now.getTime() + 1000 * 60 * 60);
+      const absExp = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30);
+      const duplicateHash = '5e'.padEnd(64, 'f');
+
+      // Seed the old active token to be rotated
+      const oldRaw = await helper.insert({
+        userId: seedUserId,
+        tokenHash: '6f'.padEnd(64, '0'),
+        expiresAt: exp,
+        absoluteExpiresAt: absExp,
+      });
+
+      // Pre-seed the duplicate hash so the new token insert will conflict
+      await helper.insert({
+        userId: seedUserId,
+        tokenHash: duplicateHash,
+        expiresAt: exp,
+        absoluteExpiresAt: absExp,
+      });
+
+      const oldToken = await repository.findById(oldRaw.id);
+      const newToken = makeToken({ tokenHash: duplicateHash });
+
+      const { revokedOldToken, newToken: rotatedNew } = oldToken!.rotate({
+        newId: newToken.id,
+        newTokenHash: newToken.tokenHash,
+        expiresAt: newToken.expiresAt,
+      });
+
+      await expect(
+        repository.rotate(revokedOldToken, rotatedNew),
+      ).rejects.toThrow(RefreshTokenAlreadyExistsError);
+
+      // Old token should NOT have been revoked (transaction rolled back)
+      const rawOld = await helper.findByIdRaw(oldRaw.id);
+      expect(rawOld!.revokedAt).toBeNull();
+    });
+
+    it('should allow only ONE winner and reject the other when two rotate calls race concurrently', async () => {
+      const now = new Date();
+      const exp = new Date(now.getTime() + 1000 * 60 * 60);
+      const absExp = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30);
+
+      const oldRaw = await helper.insert({
+        userId: seedUserId,
+        tokenHash: 'a1'.padEnd(64, '0'),
+        expiresAt: exp,
+        absoluteExpiresAt: absExp,
+      });
+
+      // Prepare two separate domain instances representing the same DB record (simulating concurrent reads)
+      const oldToken1 = (await repository.findById(oldRaw.id))!;
+      const oldToken2 = (await repository.findById(oldRaw.id))!;
+
+      const newToken1 = makeToken({ tokenHash: 'b1'.padEnd(64, '0') });
+      const newToken2 = makeToken({ tokenHash: 'c1'.padEnd(64, '0') });
+
+      const rotation1 = oldToken1.rotate({
+        newId: newToken1.id,
+        newTokenHash: newToken1.tokenHash,
+        expiresAt: newToken1.expiresAt,
+      });
+
+      const rotation2 = oldToken2.rotate({
+        newId: newToken2.id,
+        newTokenHash: newToken2.tokenHash,
+        expiresAt: newToken2.expiresAt,
+      });
+
+      // Execute both rotation transactions concurrently
+      const results = await Promise.allSettled([
+        repository.rotate(rotation1.revokedOldToken, rotation1.newToken),
+        repository.rotate(rotation2.revokedOldToken, rotation2.newToken),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter(
+        (r): r is PromiseRejectedResult => r.status === 'rejected',
+      );
+
+      // Exactly one operation must succeed, while the concurrent request must be rejected
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0]!.reason).toBeInstanceOf(TokenInvalidError);
+
+      // Verify that exactly one new token record is persisted in the database
+      const rawNew1 = await helper.findByIdRaw(newToken1.id);
+      const rawNew2 = await helper.findByIdRaw(newToken2.id);
+      const totalCreated = [rawNew1, rawNew2].filter((t) => t !== null).length;
+      expect(totalCreated).toBe(1);
     });
   });
 });
