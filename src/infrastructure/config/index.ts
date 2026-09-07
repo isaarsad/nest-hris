@@ -11,8 +11,9 @@ export const config = {
       expiresIn: env.JWT_ACCESS_EXPIRES_IN,
     },
     refreshToken: {
-      idle: env.REFRESH_TOKEN_TTL_IDLE_DAYS,
-      absolute: env.REFRESH_TOKEN_TTL_ABSOLUTE_DAYS,
+      idleDays: env.REFRESH_TOKEN_TTL_IDLE_DAYS,
+      absoluteDays: env.REFRESH_TOKEN_TTL_ABSOLUTE_DAYS,
+      concurrencyLeewayMs: env.REFRESH_TOKEN_CONCURRENCY_LEEWAY_MS,
     },
   },
   database: {

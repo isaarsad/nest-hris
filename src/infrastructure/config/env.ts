@@ -30,13 +30,18 @@ const envSchema = z.object({
     )
     .default('15m'),
 
-  // Auth - Refresh Token TTL (dalam hari)
+  // Auth - Refresh Token TTL (in days)
   REFRESH_TOKEN_TTL_IDLE_DAYS: z.coerce.number().int().positive().default(7),
   REFRESH_TOKEN_TTL_ABSOLUTE_DAYS: z.coerce
     .number()
     .int()
     .positive()
     .default(30),
+  REFRESH_TOKEN_CONCURRENCY_LEEWAY_MS: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(5000),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

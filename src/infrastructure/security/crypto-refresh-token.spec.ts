@@ -63,7 +63,7 @@ describe('CryptoRefreshToken', () => {
     it('should return a Date with configured idle TTL offset from now', () => {
       const expectedMs =
         FIXED_NOW.getTime() +
-        config.auth.refreshToken.idle * 24 * 60 * 60 * 1000;
+        config.auth.refreshToken.idleDays * 24 * 60 * 60 * 1000;
 
       const expiresAt = cryptoRefreshToken.getExpiresAt();
 
@@ -80,7 +80,7 @@ describe('CryptoRefreshToken', () => {
     it('should return a Date with configured absolute TTL offset from now', () => {
       const expectedMs =
         FIXED_NOW.getTime() +
-        config.auth.refreshToken.absolute * 24 * 60 * 60 * 1000;
+        config.auth.refreshToken.absoluteDays * 24 * 60 * 60 * 1000;
 
       const absoluteExpiresAt = cryptoRefreshToken.getAbsoluteExpiresAt();
 
