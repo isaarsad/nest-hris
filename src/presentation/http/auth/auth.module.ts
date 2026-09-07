@@ -31,6 +31,9 @@ import { TokenCleanupTask } from '../../cron/token-cleanup.task.js';
 import { AuthController } from './auth.controller.js';
 import { ACCESS_TOKEN_PORT } from '../guards/auth.guard.js';
 
+// config
+import { config } from '../../../infrastructure/config/index.js';
+
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 export const REFRESH_TOKEN_REPOSITORY = Symbol('REFRESH_TOKEN_REPOSITORY');
 export const PASSWORD_HASHER = Symbol('PASSWORD_HASHER');
@@ -118,6 +121,7 @@ export const ID_GENERATOR = Symbol('ID_GENERATOR');
           idGenerator,
           accessTokenPort,
           refreshTokenPort,
+          config.auth.refreshToken.concurrencyLeewayMs,
         );
       },
     },
