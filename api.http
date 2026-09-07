@@ -1,18 +1,16 @@
 ### ==========================================================================
-### GLOBAL VARIABLES & CONFIGURATION
+### CONFIGURATION
 ### ==========================================================================
 @baseUrl = http://localhost:3000
 @contentType = application/json
-
-# Mock UUID for dynamic route testing
 @userId = 892ac592-b017-4660-be6f-4dd881dfb0fe
 
 ### ==========================================================================
-### 1. AUTHENTICATION MODULE (PUBLIC & PROTECTED)
+### AUTH MODULE
 ### ==========================================================================
 
-### 1.1 Login (Public - Automatically captures tokens)
-# @name loginResponse
+### Login
+# @name login
 POST {{baseUrl}}/auth/login
 Content-Type: {{contentType}}
 
@@ -21,12 +19,12 @@ Content-Type: {{contentType}}
   "password": "SuperSecret123!"
 }
 
-### Dynamically extract tokens from the login response
-@accessToken = {{loginResponse.response.body.accessToken}}
-@refreshToken = {{loginResponse.response.body.refreshToken}}
+###
+@accessToken = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
 
-### 1.2 Refresh Token (Public / Semi-Public)
-# @name refreshResponse
+### Refresh Token
+# @name refresh
 POST {{baseUrl}}/auth/refresh
 Content-Type: {{contentType}}
 
@@ -34,28 +32,31 @@ Content-Type: {{contentType}}
   "refreshToken": "{{refreshToken}}"
 }
 
-### Dynamically extract tokens from the refresh response
-@newAccessToken = {{refreshResponse.response.body.accessToken}}
-@newRefreshToken = {{refreshResponse.response.body.refreshToken}}
+###
+@newAccessToken = {{refresh.response.body.accessToken}}
+@newRefreshToken = {{refresh.response.body.refreshToken}}
 
-### 1.3 Logout (Protected)
+### Logout
 POST {{baseUrl}}/auth/logout
-Authorization: Bearer {{accessToken}}
 Content-Type: {{contentType}}
 
 {
   "refreshToken": "{{refreshToken}}"
 }
 
+### Revoke User Sessions
+DELETE {{baseUrl}}/auth/{{userId}}/sessions
+Authorization: Bearer {{accessToken}}
+
 ### ==========================================================================
-### 2. DEPARTMENTS MODULE (PROTECTED)
+### DEPARTMENTS MODULE
 ### ==========================================================================
 
-### 2.1 Get All Departments
+### Get All Departments
 GET {{baseUrl}}/departments
 Authorization: Bearer {{accessToken}}
 
-### 2.2 Create Department
+### Create Department
 POST {{baseUrl}}/departments
 Authorization: Bearer {{accessToken}}
 Content-Type: {{contentType}}
@@ -66,10 +67,10 @@ Content-Type: {{contentType}}
 }
 
 ### ==========================================================================
-### 3. USERS MODULE (PROTECTED)
+### USERS MODULE
 ### ==========================================================================
 
-### 3.1 Create User
+### Create User
 POST {{baseUrl}}/users
 Authorization: Bearer {{accessToken}}
 Content-Type: {{contentType}}
@@ -81,19 +82,19 @@ Content-Type: {{contentType}}
   "role": "HR"
 }
 
-### 3.2 Get All Users
+### Get All Users
 GET {{baseUrl}}/users
 Authorization: Bearer {{accessToken}}
 
-### 3.3 Activate User (Path Variable UUID)
+### Activate User
 PATCH {{baseUrl}}/users/{{userId}}/activate
 Authorization: Bearer {{accessToken}}
 
-### 3.4 Deactivate User (Path Variable UUID)
+### Deactivate User
 PATCH {{baseUrl}}/users/{{userId}}/deactivate
 Authorization: Bearer {{accessToken}}
 
-### 3.5 Change User Role
+### Change User Role
 PATCH {{baseUrl}}/users/{{userId}}/role
 Authorization: Bearer {{accessToken}}
 Content-Type: {{contentType}}

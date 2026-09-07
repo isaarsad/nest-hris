@@ -60,4 +60,24 @@ export class RefreshTokenTableTestHelper {
 
     return rows[0] || null;
   }
+
+  async findByTokenHash(
+    tokenHash: string,
+  ): Promise<RefreshTokenOrmEntity | null> {
+    const rows = await this.dataSource.query<RefreshTokenOrmEntity[]>(
+      `SELECT
+      id,
+      user_id AS "userId",
+      token_hash AS "tokenHash",
+      expires_at AS "expiresAt",
+      absolute_expires_at AS "absoluteExpiresAt",
+      revoked_at AS "revokedAt",
+      replaced_by_token_id AS "replacedByTokenId",
+      created_at AS "createdAt"
+    FROM refresh_tokens WHERE token_hash = $1`,
+      [tokenHash],
+    );
+
+    return rows[0] || null;
+  }
 }
