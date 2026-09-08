@@ -1099,10 +1099,10 @@ describe('Users (E2E)', () => {
           const response = await request(server)
             .patch(`/users/${user.id}/deactivate`)
             .set(await createAuthHeader(user.id, actorRole))
-            .expect(400);
+            .expect(403);
 
           expect(response.body).toMatchObject({
-            statusCode: 400,
+            statusCode: 403,
             error: 'SELF_DEACTIVATION_NOT_ALLOWED',
             message: expect.stringMatching(/deactivate/i),
             path: `/users/${user.id}/deactivate`,
