@@ -94,7 +94,7 @@ describe('Users (E2E)', () => {
         const payload = {
           username: 'johndoe',
           email: 'johndoe@example.com',
-          passwordPlainText: 'SecurePass123',
+          password: 'SecurePass123',
           role: UserRole.EMPLOYEE,
         };
 
@@ -105,7 +105,7 @@ describe('Users (E2E)', () => {
           .expect(201);
 
         expect(response.body).not.toHaveProperty('passwordHash');
-        expect(response.body).not.toHaveProperty('passwordPlainText');
+        expect(response.body).not.toHaveProperty('password');
         expect(response.body).toEqual({
           id: expect.any(String),
           username: 'johndoe',
@@ -170,7 +170,7 @@ describe('Users (E2E)', () => {
             const payload = {
               username: `user-${uniqueId}`,
               email: `user-${uniqueId}@example.com`,
-              passwordPlainText: 'SecurePass123',
+              password: 'SecurePass123',
               role: targetRole,
             };
 
@@ -181,7 +181,7 @@ describe('Users (E2E)', () => {
               .expect(201);
 
             expect(response.body).not.toHaveProperty('passwordHash');
-            expect(response.body).not.toHaveProperty('passwordPlainText');
+            expect(response.body).not.toHaveProperty('password');
             expect(response.body).toMatchObject({
               id: expect.any(String),
               username: payload.username,
@@ -216,7 +216,7 @@ describe('Users (E2E)', () => {
             const payload = {
               username: `forbidden_${uniqueId}`,
               email: `forbidden_${uniqueId}@example.com`,
-              passwordPlainText: 'SecurePass123',
+              password: 'SecurePass123',
               role: targetRole,
             };
 
@@ -267,7 +267,7 @@ describe('Users (E2E)', () => {
             const payload = {
               username: `forbidden_${uniqueId}`,
               email: `forbidden_${uniqueId}@example.com`,
-              passwordPlainText: 'SecurePass123',
+              password: 'SecurePass123',
               role: targetRole,
             };
 
@@ -297,7 +297,7 @@ describe('Users (E2E)', () => {
           scenario: 'username is missing',
           payload: {
             email: 'test@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           },
           expectedError: { field: 'username', code: 'invalid_type' },
@@ -306,7 +306,7 @@ describe('Users (E2E)', () => {
           scenario: 'email is missing',
           payload: {
             username: 'testuser',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           },
           expectedError: { field: 'email', code: 'invalid_type' },
@@ -318,14 +318,14 @@ describe('Users (E2E)', () => {
             email: 'test@example.com',
             role: UserRole.EMPLOYEE,
           },
-          expectedError: { field: 'passwordPlainText', code: 'invalid_type' },
+          expectedError: { field: 'password', code: 'invalid_type' },
         },
         {
           scenario: 'email format is invalid',
           payload: {
             username: 'testuser',
             email: 'not-an-email',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           },
           expectedError: { field: 'email', code: 'invalid_format' },
@@ -335,7 +335,7 @@ describe('Users (E2E)', () => {
           payload: {
             username: 'usr',
             email: 'test@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           },
           expectedError: { field: 'username', code: 'too_small' },
@@ -345,7 +345,7 @@ describe('Users (E2E)', () => {
           payload: {
             username: 'u'.repeat(31),
             email: 'test@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           },
           expectedError: { field: 'username', code: 'too_big' },
@@ -355,7 +355,7 @@ describe('Users (E2E)', () => {
           payload: {
             username: 'invalid user!',
             email: 'test@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           },
           expectedError: { field: 'username', code: 'invalid_format' },
@@ -365,17 +365,17 @@ describe('Users (E2E)', () => {
           payload: {
             username: 'testuser',
             email: 'test@example.com',
-            passwordPlainText: 'short',
+            password: 'short',
             role: UserRole.EMPLOYEE,
           },
-          expectedError: { field: 'passwordPlainText', code: 'too_small' },
+          expectedError: { field: 'password', code: 'too_small' },
         },
         {
           scenario: 'role is invalid',
           payload: {
             username: 'testuser',
             email: 'test@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: 'SUPERADMIN',
           },
           expectedError: { field: 'role', code: 'invalid_value' },
@@ -420,7 +420,7 @@ describe('Users (E2E)', () => {
           .send({
             username: 'john_doe',
             email: 'new_john@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           })
           .expect(201);
@@ -449,7 +449,7 @@ describe('Users (E2E)', () => {
           .send({
             username: 'new_johndoe',
             email: 'johndoe@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           })
           .expect(201);
@@ -477,7 +477,7 @@ describe('Users (E2E)', () => {
           .send({
             username: 'ExistingUser',
             email: 'new@example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           })
           .expect(409);
@@ -503,7 +503,7 @@ describe('Users (E2E)', () => {
           .send({
             username: 'brandnewuser',
             email: 'Taken@Example.com',
-            passwordPlainText: 'SecurePass123',
+            password: 'SecurePass123',
             role: UserRole.EMPLOYEE,
           })
           .expect(409);

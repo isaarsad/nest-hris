@@ -16,7 +16,7 @@ import { IdGeneratorPort } from '../../domain/shared/ports/id-generator.port.js'
 export interface CreateUserCommand {
   username: string;
   email: string;
-  passwordPlainText: string;
+  password: string;
   role: UserRole;
 }
 
@@ -36,7 +36,7 @@ export class CreateUserUseCase {
       throw new UserPermissionDeniedError('create');
     }
 
-    const { username, email, passwordPlainText, role } = command;
+    const { username, email, password, role } = command;
 
     if (!requestingUser.canAssignRole(role)) {
       throw new UserHierarchyViolationError(
@@ -59,7 +59,7 @@ export class CreateUserUseCase {
       throw new UserAlreadyExistsError('email', email);
     }
 
-    const passwordHash = await this.passwordHasher.hash(passwordPlainText);
+    const passwordHash = await this.passwordHasher.hash(password);
 
     const user = User.create({
       id: this.idGenerator.generate(),

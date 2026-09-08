@@ -48,7 +48,7 @@ const makeCreateUserCommand = (
 ): CreateUserCommand => ({
   username: 'john_doe',
   email: 'john@example.com',
-  passwordPlainText: 'plain-secret-123',
+  password: 'plain-secret-123',
   role: UserRole.EMPLOYEE,
   ...overrides,
 });
@@ -128,7 +128,7 @@ describe('CreateUserUseCase', () => {
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
 
       expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
-        command.passwordPlainText,
+        command.password,
       );
 
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
@@ -188,7 +188,7 @@ describe('CreateUserUseCase', () => {
       );
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
       expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
-        command.passwordPlainText,
+        command.password,
       );
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.any(User),
@@ -210,7 +210,7 @@ describe('CreateUserUseCase', () => {
       );
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
       expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
-        command.passwordPlainText,
+        command.password,
       );
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
         expect.any(User),
@@ -292,7 +292,7 @@ describe('CreateUserUseCase', () => {
       expect(userRepository.existByEmail).toHaveBeenCalledWith(command.email);
 
       expect(passwordHasher.hash).toHaveBeenCalledExactlyOnceWith(
-        command.passwordPlainText,
+        command.password,
       );
 
       expect(userRepository.save).toHaveBeenCalledExactlyOnceWith(
