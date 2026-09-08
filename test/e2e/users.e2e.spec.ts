@@ -1406,7 +1406,7 @@ describe('Users (E2E)', () => {
 
     describe('Business rule errors', () => {
       it.each([{ actorRole: UserRole.ROOT }, { actorRole: UserRole.ADMIN }])(
-        'should return 400 when $actorRole tries to change their own role',
+        'should return 403 when $actorRole tries to change their own role',
         async ({ actorRole }) => {
           const user = await userHelper.insert({
             username: `self_${actorRole}`,
@@ -1418,10 +1418,10 @@ describe('Users (E2E)', () => {
             .patch(`/users/${user.id}/role`)
             .set(await createAuthHeader(user.id, actorRole))
             .send({ role: UserRole.EMPLOYEE })
-            .expect(400);
+            .expect(403);
 
           expect(response.body).toMatchObject({
-            statusCode: 400,
+            statusCode: 403,
             error: 'SELF_ROLE_CHANGE_NOT_ALLOWED',
             message: expect.any(String),
             path: `/users/${user.id}/role`,
@@ -1442,7 +1442,7 @@ describe('Users (E2E)', () => {
         { actorRole: UserRole.ADMIN, currentRole: UserRole.HR },
         { actorRole: UserRole.ADMIN, currentRole: UserRole.EMPLOYEE },
       ])(
-        'should return 400 when $actorRole tries to change $currentRole to the same role',
+        'should return 409 when $actorRole tries to change $currentRole to the same role',
         async ({ actorRole, currentRole }) => {
           const uniqueId = crypto.randomUUID().slice(0, 8);
 
@@ -1456,10 +1456,10 @@ describe('Users (E2E)', () => {
             .patch(`/users/${user.id}/role`)
             .set(authHeaders[actorRole])
             .send({ role: currentRole })
-            .expect(400);
+            .expect(409);
 
           expect(response.body).toMatchObject({
-            statusCode: 400,
+            statusCode: 409,
             error: 'USER_ROLE_UNCHANGED',
             message: expect.stringContaining(user.id),
             path: `/users/${user.id}/role`,
