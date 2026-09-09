@@ -22,7 +22,9 @@ const envSchema = z
     PGDATABASE: z.string().min(1),
 
     // Auth - JWT Access Token
-    JWT_ACCESS_SECRET: z.string().min(32, 'Minimal 32 karakter demi keamanan'),
+    JWT_ACCESS_SECRET: z
+      .string()
+      .min(32, 'Minimum of 32 characters required for security'),
     JWT_ACCESS_EXPIRES_IN: z
       .string()
       .regex(

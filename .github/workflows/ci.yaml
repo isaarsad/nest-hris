@@ -21,7 +21,7 @@ jobs:
       PGPORT: 5432
 
       # JWT & Tokenize
-      JWT_ACCESS_SECRET: supersecretaccesskey123456789
+      JWT_ACCESS_SECRET: supersecretaccesskey1234567890abcdef1234567890
       JWT_ACCESS_EXPIRES_IN: 15m
       REFRESH_TOKEN_TTL_IDLE_DAYS: 7
       REFRESH_TOKEN_TTL_ABSOLUTE_DAYS: 30
