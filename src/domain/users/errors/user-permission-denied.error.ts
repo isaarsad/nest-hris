@@ -11,7 +11,8 @@ export class UserPermissionDeniedError extends ForbiddenError {
       | 'view'
       | 'change role'
       | 'activate'
-      | 'deactivate',
+      | 'deactivate'
+      | 'revoke sessions of',
     target: 'a user' | 'users' = 'a user',
   ) {
     super(`You do not have permission to ${action} ${target}`);

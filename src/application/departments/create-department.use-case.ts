@@ -7,6 +7,7 @@ import {
 } from '../../domain/departments/errors/index.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
 import { UserPermission } from '../../domain/users/user-role-permissions.js';
+import { IdGeneratorPort } from '../../domain/shared/ports/id-generator.port.js';
 
 export interface CreateDepartmentInput {
   name: string;
@@ -18,7 +19,7 @@ export interface CreateDepartmentInput {
 export class CreateDepartmentUseCase {
   constructor(
     private readonly departmentRepository: DepartmentRepository,
-    private readonly idGenerator: () => string,
+    private readonly idGenerator: IdGeneratorPort,
   ) {}
 
   async execute(
@@ -56,7 +57,7 @@ export class CreateDepartmentUseCase {
     }
 
     const department = Department.create({
-      id: this.idGenerator(),
+      id: this.idGenerator.generate(),
       name: name,
       code: code,
       parentDepartmentId: parentDepartmentId,

@@ -2,10 +2,11 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { config } from '../config/index.js';
 import { DepartmentOrmEntity } from './entities/department.orm-entity.js';
 import { UserOrmEntity } from './entities/user.orm-entity.js';
+import { RefreshTokenOrmEntity } from './entities/refresh-token.orm-entity.js';
 
 export const dataSourceOptions: DataSourceOptions = {
   ...config.database,
-  entities: [DepartmentOrmEntity, UserOrmEntity],
+  entities: [DepartmentOrmEntity, UserOrmEntity, RefreshTokenOrmEntity],
   migrations: [
     process.env.NODE_ENV === 'production'
       ? 'dist/migrations/*.js'

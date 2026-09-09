@@ -1,4 +1,5 @@
 import { User } from './entities/user.entity.js';
+import { Email, Username } from '../shared/value-objects/index.js';
 
 export interface UserFilter {
   includeInactive?: boolean;
@@ -10,9 +11,9 @@ export interface UserRepository {
 
   findById(id: string): Promise<User | null>;
 
-  findByUsername(username: string): Promise<User | null>;
+  findByUsername(username: Username): Promise<User | null>;
 
-  findByEmail(email: string): Promise<User | null>;
+  findByEmail(email: Email): Promise<User | null>;
 
   findAll(filter: UserFilter): Promise<User[]>;
 

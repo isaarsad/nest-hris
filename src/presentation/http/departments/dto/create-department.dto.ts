@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CreateDepartmentInput } from '../../../../application/departments/create-department.use-case.js';
 import { createZodDto } from 'nestjs-zod';
+import { ApiProperty } from '@nestjs/swagger';
 
 export const createDepartmentSchema: z.ZodType<CreateDepartmentInput> =
   z.object({
@@ -31,4 +32,16 @@ export const createDepartmentSchema: z.ZodType<CreateDepartmentInput> =
       .optional(),
   });
 
-export class CreateDepartmentDto extends createZodDto(createDepartmentSchema) {}
+export class CreateDepartmentDto extends createZodDto(createDepartmentSchema) {
+  @ApiProperty({ example: 'Engineering' })
+  name!: string;
+
+  @ApiProperty({ example: 'ENG' })
+  code!: string;
+
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  parentDepartmentId?: string | null;
+
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  headEmployeeId?: string | null;
+}

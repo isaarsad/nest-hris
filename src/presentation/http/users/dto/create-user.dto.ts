@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { CreateUserCommand } from '../../../../application/users/create-user.use-case.js';
 import { UserRole } from '../../../../domain/users/user-role-permissions.js';
 import { createZodDto } from 'nestjs-zod';
+import { ApiProperty } from '@nestjs/swagger';
 
 export const createUserSchema: z.ZodType<CreateUserCommand> = z.object({
   username: z
@@ -21,7 +22,7 @@ export const createUserSchema: z.ZodType<CreateUserCommand> = z.object({
       message: 'Invalid email address format',
     })
     .max(254, 'Email cannot exceed 254 characters'),
-  passwordPlainText: z
+  password: z
     .string({
       message: 'Password must be a text string',
     })
@@ -33,4 +34,16 @@ export const createUserSchema: z.ZodType<CreateUserCommand> = z.object({
   }),
 });
 
-export class CreateUserDto extends createZodDto(createUserSchema) {}
+export class CreateUserDto extends createZodDto(createUserSchema) {
+  @ApiProperty({ example: 'johndoe' })
+  username!: string;
+
+  @ApiProperty({ example: 'johndoe@example.com' })
+  email!: string;
+
+  @ApiProperty({ example: 'SuperSecret123!' })
+  password!: string;
+
+  @ApiProperty({ enum: UserRole, example: UserRole.EMPLOYEE })
+  role!: UserRole;
+}

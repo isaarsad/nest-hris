@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { Logger } from '@nestjs/common';
 import { config } from './infrastructure/config/index.js';
+import { setupSwagger } from './setup-swagger.js';
 
 const logger = new Logger('Bootstrap');
 
@@ -10,6 +11,8 @@ async function bootstrap() {
 
   const host = config.app.host;
   const port = config.app.port ?? 3000;
+
+  setupSwagger(app);
 
   await app.listen(port, host);
 

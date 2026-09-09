@@ -2,7 +2,13 @@ import { ForbiddenError } from '../../shared/errors/base/forbidden.error.js';
 import { UserRole } from '../user-role-permissions.js';
 
 export type HierarchyAction =
-  'create' | 'change role' | 'deactivate' | 'activate' | 'delete' | 'restore';
+  | 'create'
+  | 'change role'
+  | 'deactivate'
+  | 'activate'
+  | 'delete'
+  | 'restore'
+  | 'revoke sessions of';
 
 export class UserHierarchyViolationError extends ForbiddenError {
   readonly code = 'USER_HIERARCHY_VIOLATION';

@@ -1,6 +1,6 @@
-import { InvariantError } from '../../shared/errors/base/invariant.error.js';
+import { ForbiddenError } from '../../shared/errors/base/forbidden.error.js';
 
-export class SelfDeactivationNotAllowedError extends InvariantError {
+export class SelfDeactivationNotAllowedError extends ForbiddenError {
   readonly code = 'SELF_DEACTIVATION_NOT_ALLOWED';
 
   constructor() {

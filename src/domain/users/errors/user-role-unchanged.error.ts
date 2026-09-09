@@ -1,7 +1,7 @@
-import { InvariantError } from '../../shared/errors/base/invariant.error.js';
+import { ConflictError } from '../../shared/errors/base/conflict.error.js';
 import { UserRole } from '../user-role-permissions.js';
 
-export class UserRoleUnchangedError extends InvariantError {
+export class UserRoleUnchangedError extends ConflictError {
   readonly code = 'USER_ROLE_UNCHANGED';
   constructor(username: string, id: string, role: UserRole) {
     super(

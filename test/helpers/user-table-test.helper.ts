@@ -2,6 +2,10 @@ import { DataSource } from 'typeorm';
 import { UserOrmEntity } from '../../src/infrastructure/database/entities/user.orm-entity.js';
 import { UserRole } from '../../src/domain/users/user-role-permissions.js';
 
+export const DEFAULT_RAW_PASSWORD = 'SecurePass123';
+export const DEFAULT_ARGON2_PASSWORD_HASH =
+  '$argon2id$v=19$m=65536,t=3,p=4$eegXcTNacpx5o/RdC9UfMQ$xeBeQkM78FRvt8l7RFnNIUUhECINwNzdYqfLg8iJkHU';
+
 export class UserTableTestHelper {
   constructor(private readonly dataSource: DataSource) {}
 
@@ -14,7 +18,7 @@ export class UserTableTestHelper {
       id: crypto.randomUUID(),
       username: 'defaultuser',
       email: 'default@example.com',
-      passwordHash: '$2b$10$hashedpassword',
+      passwordHash: DEFAULT_ARGON2_PASSWORD_HASH,
       role: UserRole.EMPLOYEE,
       isActive: true,
       deletedAt: null,

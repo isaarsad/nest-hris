@@ -1,5 +1,5 @@
 export type DomainErrorCategory =
-  'NOT_FOUND' | 'CONFLICT' | 'FORBIDDEN' | 'INVARIANT';
+  'NOT_FOUND' | 'CONFLICT' | 'FORBIDDEN' | 'INVARIANT' | 'UNAUTHORIZED';
 
 export abstract class DomainError extends Error {
   abstract readonly code: string;

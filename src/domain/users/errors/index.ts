@@ -5,7 +5,7 @@ export * from './user-permission-denied.error.js';
 export * from './user-already-deleted.error.js';
 export * from './user-already-inactive.error.js';
 export * from './user-already-active.error.js';
-export * from './user-not-deleted-error.js';
+export * from './user-not-deleted.error.js';
 export * from './user-inconsistent-state.error.js';
 export * from './user-role-unchanged.error.js';
 export * from './invalid-user-role.error.js';

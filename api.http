@@ -1,20 +1,79 @@
-POST http://localhost:3000/departments
-Content-Type: application/json
-
-{ "name": "Engineering", "code": "eng" }
-
-###
-
-GET http://localhost:3000/departments
-Content-Type: application/json
-
+### ==========================================================================
+### CONFIGURATION
+### ==========================================================================
 @baseUrl = http://localhost:3000
-# Ganti userId ini pake UUID asli dari database / hasil response POST /users
+@contentType = application/json
 @userId = 892ac592-b017-4660-be6f-4dd881dfb0fe
 
-### 1. Create User (Lulus Zod DTO Validation)
+### ==========================================================================
+### AUTH MODULE
+### ==========================================================================
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "johndoe@example.com",
+  "password": "SuperSecret123!"
+}
+
+###
+@accessToken = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### Refresh Token
+# @name refresh
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+@newAccessToken = {{refresh.response.body.accessToken}}
+@newRefreshToken = {{refresh.response.body.refreshToken}}
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Revoke User Sessions
+DELETE {{baseUrl}}/auth/{{userId}}/sessions
+Authorization: Bearer {{accessToken}}
+
+### ==========================================================================
+### DEPARTMENTS MODULE
+### ==========================================================================
+
+### Get All Departments
+GET {{baseUrl}}/departments
+Authorization: Bearer {{accessToken}}
+
+### Create Department
+POST {{baseUrl}}/departments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Engineering",
+  "code": "ENG"
+}
+
+### ==========================================================================
+### USERS MODULE
+### ==========================================================================
+
+### Create User
 POST {{baseUrl}}/users
-Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
 
 {
   "username": "johndoe",
@@ -23,18 +82,22 @@ Content-Type: application/json
   "role": "HR"
 }
 
-### 2. Get All Users
+### Get All Users
 GET {{baseUrl}}/users
+Authorization: Bearer {{accessToken}}
 
-### 3. Activate User (Path Variable UUID)
+### Activate User
 PATCH {{baseUrl}}/users/{{userId}}/activate
+Authorization: Bearer {{accessToken}}
 
-### 4. Deactivate User (Path Variable UUID)
+### Deactivate User
 PATCH {{baseUrl}}/users/{{userId}}/deactivate
+Authorization: Bearer {{accessToken}}
 
-### 5. Change User Role (Lulus Zod Enum Validation)
+### Change User Role
 PATCH {{baseUrl}}/users/{{userId}}/role
-Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
 
 {
   "role": "ROOT"

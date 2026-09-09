@@ -11,6 +11,7 @@ import { InvariantError } from '../../../domain/shared/errors/base/invariant.err
 import { ForbiddenError } from '../../../domain/shared/errors/base/forbidden.error.js';
 import { ZodValidationException } from 'nestjs-zod';
 import { ZodError } from 'zod';
+import { UnauthorizedError } from '../../../domain/shared/errors/base/unauthorized.error.js';
 
 // ─── Dummy Classes for Testing ──────────────────────────────────────────────
 
@@ -42,6 +43,14 @@ class TestForbiddenError extends ForbiddenError {
   readonly code = 'TEST_FORBIDDEN';
 
   constructor(msg = 'Forbidden access') {
+    super(msg);
+  }
+}
+
+class TestUnauthorizedError extends UnauthorizedError {
+  readonly code = 'TEST_UNAUTHORIZED';
+
+  constructor(msg = 'Unauthorized access') {
     super(msg);
   }
 }
@@ -125,6 +134,7 @@ describe('DomainExceptionFilter', () => {
             message: 'Invalid city',
           },
         ],
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -133,7 +143,7 @@ describe('DomainExceptionFilter', () => {
   // ── HttpException ────────────────────────────────────────────────────────────
 
   describe('when exception is an HttpException', () => {
-    it('should respond with the HttpException status, object body, and timestamp', () => {
+    it('should respond with the HttpException status, object body, path, and timestamp', () => {
       const exception = new HttpException(
         { message: 'Not Found', error: 'Not Found' },
         HttpStatus.NOT_FOUND,
@@ -146,6 +156,7 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.NOT_FOUND,
         message: 'Not Found',
         error: 'Not Found',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -162,6 +173,7 @@ describe('DomainExceptionFilter', () => {
       expect(makeJsonMock).toHaveBeenCalledWith({
         statusCode: HttpStatus.BAD_REQUEST,
         message: 'Bad Request',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -180,6 +192,7 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.NOT_FOUND,
         error: 'TEST_NOT_FOUND',
         message: 'Department not found',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -194,6 +207,7 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.CONFLICT,
         error: 'TEST_CONFLICT',
         message: 'Department already exists',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -208,6 +222,7 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.BAD_REQUEST,
         error: 'TEST_INVARIANT',
         message: 'Invalid input',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -222,6 +237,22 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.FORBIDDEN,
         error: 'TEST_FORBIDDEN',
         message: 'Access denied',
+        path: '/test',
+        timestamp: expect.any(String),
+      });
+    });
+
+    it('should map UNAUTHORIZED domain error to 401', () => {
+      const exception = new TestUnauthorizedError('Unauthorized access');
+
+      filter.catch(exception, makeHost());
+
+      expect(makeStatusMock).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(makeJsonMock).toHaveBeenCalledWith({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        error: 'TEST_UNAUTHORIZED',
+        message: 'Unauthorized access',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -238,6 +269,7 @@ describe('DomainExceptionFilter', () => {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         error: 'UNMAPPED_ERROR_CODE',
         message: 'Unmapped error occurred',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
@@ -257,14 +289,27 @@ describe('DomainExceptionFilter', () => {
       expect(makeJsonMock).toHaveBeenCalledWith({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'Internal server error',
+        path: '/test',
         timestamp: expect.any(String),
       });
     });
   });
 
-  // ── Logging behaviour ────────────────────────────────────────────────────────
+  // ── Path & Logging behaviour ─────────────────────────────────────────────────
 
-  describe('logging behaviour', () => {
+  describe('path & logging behaviour', () => {
+    it('should dynamically include the correct request URL in the path property', () => {
+      const exception = new TestNotFoundError('Not found');
+
+      filter.catch(exception, makeHost({ url: '/api/v1/custom-endpoint' }));
+
+      expect(makeJsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: '/api/v1/custom-endpoint',
+        }),
+      );
+    });
+
     it('should call logger.error with stack trace for 5xx exceptions', () => {
       const loggerErrorSpy = vi
         .spyOn(Logger.prototype, 'error')

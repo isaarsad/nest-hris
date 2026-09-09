@@ -54,7 +54,7 @@ describe('TypeOrmUserRepository', () => {
         id: randomUUID(),
         username: 'johndoe',
         email: 'john@example.com',
-        passwordHash: '$2b$10$hashedpassword',
+        passwordHash: new PasswordHash('$2b$10$hashedpassword'),
         role: UserRole.EMPLOYEE,
       });
 
@@ -148,7 +148,7 @@ describe('TypeOrmUserRepository', () => {
         id: randomUUID(),
         username: 'duplicate',
         email: 'another@example.com',
-        passwordHash: '$2b$10$hashedpassword',
+        passwordHash: new PasswordHash('$2b$10$hashedpassword'),
         role: UserRole.EMPLOYEE,
       });
 
@@ -170,7 +170,7 @@ describe('TypeOrmUserRepository', () => {
         id: randomUUID(),
         username: 'seconduser',
         email: 'shared@example.com',
-        passwordHash: '$2b$10$hashedpassword',
+        passwordHash: new PasswordHash('$2b$10$hashedpassword'),
         role: UserRole.EMPLOYEE,
       });
 
@@ -225,7 +225,9 @@ describe('TypeOrmUserRepository', () => {
         email: 'target@example.com',
       });
 
-      const result = await repository.findByUsername('targetuser');
+      const result = await repository.findByUsername(
+        new Username('targetuser'),
+      );
 
       expect(result).toBeInstanceOf(User);
       expect(result).not.toBeNull();
@@ -234,7 +236,7 @@ describe('TypeOrmUserRepository', () => {
     });
 
     it('should return null when username does not exist', async () => {
-      const result = await repository.findByUsername('ghostuser');
+      const result = await repository.findByUsername(new Username('ghostuser'));
       expect(result).toBeNull();
     });
   });
@@ -248,7 +250,9 @@ describe('TypeOrmUserRepository', () => {
         email: 'emailuser@example.com',
       });
 
-      const result = await repository.findByEmail('emailuser@example.com');
+      const result = await repository.findByEmail(
+        new Email('emailuser@example.com'),
+      );
 
       expect(result).toBeInstanceOf(User);
       expect(result).not.toBeNull();
@@ -257,7 +261,9 @@ describe('TypeOrmUserRepository', () => {
     });
 
     it('should return null when email does not exist', async () => {
-      const result = await repository.findByEmail('ghost@example.com');
+      const result = await repository.findByEmail(
+        new Email('ghost@example.com'),
+      );
       expect(result).toBeNull();
     });
   });
@@ -285,7 +291,7 @@ describe('TypeOrmUserRepository', () => {
           id: results[0]!.id,
           username: new Username('activeuser'),
           email: new Email('active@example.com'),
-          passwordHash: new PasswordHash('$2b$10$hashedpassword'),
+          passwordHash: results[0]!.passwordHash,
           role: UserRole.EMPLOYEE,
           isActive: true,
           createdAt: results[0]!.createdAt,
@@ -315,7 +321,7 @@ describe('TypeOrmUserRepository', () => {
           id: results[0]!.id,
           username: new Username('activeuser'),
           email: new Email('active@example.com'),
-          passwordHash: new PasswordHash('$2b$10$hashedpassword'),
+          passwordHash: results[0]!.passwordHash,
           role: UserRole.EMPLOYEE,
           isActive: true,
           createdAt: results[0]!.createdAt,
@@ -326,7 +332,7 @@ describe('TypeOrmUserRepository', () => {
           id: results[1]!.id,
           username: new Username('inactiveuser'),
           email: new Email('inactive@example.com'),
-          passwordHash: new PasswordHash('$2b$10$hashedpassword'),
+          passwordHash: results[1]!.passwordHash,
           role: UserRole.EMPLOYEE,
           isActive: false,
           createdAt: results[1]!.createdAt,
@@ -355,7 +361,7 @@ describe('TypeOrmUserRepository', () => {
           id: results[0]!.id,
           username: new Username('aliveuser'),
           email: new Email('alive@example.com'),
-          passwordHash: new PasswordHash('$2b$10$hashedpassword'),
+          passwordHash: results[0]!.passwordHash,
           role: UserRole.EMPLOYEE,
           isActive: true,
           createdAt: results[0]!.createdAt,
@@ -390,7 +396,7 @@ describe('TypeOrmUserRepository', () => {
           id: results[0]!.id,
           username: new Username('aliveuser'),
           email: new Email('alive@example.com'),
-          passwordHash: new PasswordHash('$2b$10$hashedpassword'),
+          passwordHash: results[0]!.passwordHash,
           role: UserRole.EMPLOYEE,
           isActive: true,
           createdAt: results[0]!.createdAt,
@@ -401,7 +407,7 @@ describe('TypeOrmUserRepository', () => {
           id: results[1]!.id,
           username: new Username('deleteduser'),
           email: new Email('deleted@example.com'),
-          passwordHash: new PasswordHash('$2b$10$hashedpassword'),
+          passwordHash: results[1]!.passwordHash,
           role: UserRole.EMPLOYEE,
           isActive: false,
           createdAt: results[1]!.createdAt,

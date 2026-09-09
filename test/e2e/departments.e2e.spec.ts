@@ -4,6 +4,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module.js';
 import { DepartmentTableTestHelper } from '../helpers/department-table-test.helper.js';
+import { createAuthHeader } from '../helpers/auth-token-test.helper.js';
+import { UserRole } from '../../src/domain/users/user-role-permissions.js';
 import { Server } from 'http';
 
 describe('Departments (E2E)', () => {
@@ -11,6 +13,10 @@ describe('Departments (E2E)', () => {
   let server: Server;
   let dataSource: DataSource;
   let departmentHelper: DepartmentTableTestHelper;
+  let rootAuthHeader: Record<string, string>;
+  let adminAuthHeader: Record<string, string>;
+  let hrAuthHeader: Record<string, string>;
+  let employeeAuthHeader: Record<string, string>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -24,6 +30,17 @@ describe('Departments (E2E)', () => {
 
     dataSource = moduleFixture.get<DataSource>(DataSource);
     departmentHelper = new DepartmentTableTestHelper(dataSource);
+
+    rootAuthHeader = await createAuthHeader(crypto.randomUUID(), UserRole.ROOT);
+    adminAuthHeader = await createAuthHeader(
+      crypto.randomUUID(),
+      UserRole.ADMIN,
+    );
+    hrAuthHeader = await createAuthHeader(crypto.randomUUID(), UserRole.HR);
+    employeeAuthHeader = await createAuthHeader(
+      crypto.randomUUID(),
+      UserRole.EMPLOYEE,
+    );
   });
 
   afterAll(async () => {
@@ -34,6 +51,41 @@ describe('Departments (E2E)', () => {
     await departmentHelper.clear();
   });
 
+  // ============================================================
+  // Sanity Check: Module-Level Auth Guard
+  // ============================================================
+  describe('Authentication Guard (401 Unauthorized)', () => {
+    it('should return 401 when Authorization header is missing', async () => {
+      const response = await request(server).get('/departments').expect(401);
+
+      expect(response.body).toMatchObject({
+        statusCode: 401,
+        error: 'TOKEN_INVALID',
+        message: expect.any(String),
+        path: '/departments',
+        timestamp: expect.any(String),
+      });
+    });
+
+    it('should return 401 when token is malformed or invalid', async () => {
+      const response = await request(server)
+        .get('/departments')
+        .set({ Authorization: 'Bearer random-garbage-jwt' })
+        .expect(401);
+
+      expect(response.body).toMatchObject({
+        statusCode: 401,
+        error: 'TOKEN_INVALID',
+        message: expect.any(String),
+        path: '/departments',
+        timestamp: expect.any(String),
+      });
+    });
+  });
+
+  // ============================================================
+  // POST /departments — Create Department
+  // ============================================================
   describe('POST /departments', () => {
     describe('Success cases', () => {
       it('should respond 201 and return the created department on valid payload', async () => {
@@ -44,6 +96,7 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send(payload)
           .expect(201);
 
@@ -89,6 +142,7 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send(payload)
           .expect(201);
 
@@ -110,6 +164,7 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send(payload)
           .expect(201);
 
@@ -121,6 +176,7 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send(payload)
           .expect(201);
 
@@ -141,6 +197,7 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send(payload)
           .expect(201);
 
@@ -149,10 +206,72 @@ describe('Departments (E2E)', () => {
       });
     });
 
+    describe('Role Permission & Hierarchy Rules', () => {
+      describe('Allowed Roles (has CREATE_DEPARTMENT permission)', () => {
+        it.each([
+          { actorRole: () => rootAuthHeader, roleName: 'ROOT' },
+          { actorRole: () => adminAuthHeader, roleName: 'ADMIN' },
+        ])(
+          'should ALLOW $roleName to create a department',
+          async ({ actorRole }) => {
+            const uniqueId = crypto.randomUUID().slice(0, 8);
+            const payload = {
+              name: `Dept ${uniqueId}`,
+              code: uniqueId.slice(0, 3).toUpperCase(),
+            };
+
+            const response = await request(server)
+              .post('/departments')
+              .set(actorRole())
+              .send(payload)
+              .expect(201);
+
+            expect(response.body).toMatchObject({
+              id: expect.any(String),
+              name: payload.name,
+              code: payload.code,
+              isActive: true,
+            });
+          },
+        );
+      });
+
+      describe('Forbidden Roles (lacks CREATE_DEPARTMENT permission)', () => {
+        it.each([
+          { actorRole: () => hrAuthHeader, roleName: 'HR' },
+          { actorRole: () => employeeAuthHeader, roleName: 'EMPLOYEE' },
+        ])(
+          'should FORBID $roleName from creating a department (Permission Denied)',
+          async ({ actorRole }) => {
+            const uniqueId = crypto.randomUUID().slice(0, 8);
+            const payload = {
+              name: `Forbidden ${uniqueId}`,
+              code: uniqueId.slice(0, 3).toUpperCase(),
+            };
+
+            const response = await request(server)
+              .post('/departments')
+              .set(actorRole())
+              .send(payload)
+              .expect(403);
+
+            expect(response.body).toMatchObject({
+              statusCode: 403,
+              error: 'DEPARTMENT_PERMISSION_DENIED',
+              message: expect.any(String),
+              path: '/departments',
+              timestamp: expect.any(String),
+            });
+          },
+        );
+      });
+    });
+
     describe('Payload validation', () => {
       it('should return 400 when department name is not provided', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ code: 'HR' })
           .expect(400);
 
@@ -167,12 +286,14 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
 
       it('should return 400 when department code is not provided', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ name: 'Human Resources' })
           .expect(400);
 
@@ -187,12 +308,14 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
 
       it('should return 400 when department name is an empty string', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ name: '', code: 'HR' })
           .expect(400);
 
@@ -207,12 +330,14 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
 
       it('should return 400 when name exceeds 100 characters', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ name: 'A'.repeat(101), code: 'HR' })
           .expect(400);
 
@@ -227,12 +352,14 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
 
       it('should return 400 when code is less than 2 characters', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ name: 'Human Resources', code: 'H' })
           .expect(400);
 
@@ -247,12 +374,14 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
 
       it('should return 400 when code exceeds 10 characters', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ name: 'Human Resources', code: 'TOOLONGCODE' })
           .expect(400);
 
@@ -267,12 +396,14 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
 
       it('should return 400 when parentDepartmentId is not a valid UUID', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({
             name: 'Human Resources',
             code: 'HR',
@@ -291,12 +422,14 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
 
       it('should return 400 when headEmployeeId is not a valid UUID', async () => {
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({
             name: 'Human Resources',
             code: 'HR',
@@ -315,6 +448,7 @@ describe('Departments (E2E)', () => {
               message: expect.any(String),
             },
           ]),
+          path: '/departments',
         });
       });
     });
@@ -329,12 +463,14 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ name: 'Finance', code: 'FIN2' })
           .expect(409);
 
         expect(response.body).toMatchObject({
           statusCode: 409,
           error: 'DEPARTMENT_ALREADY_EXISTS',
+          path: '/departments',
           message: expect.stringMatching(/finance/i),
           timestamp: expect.any(String),
         });
@@ -349,12 +485,14 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({ name: 'Finance New', code: 'FIN' })
           .expect(409);
 
         expect(response.body).toMatchObject({
           statusCode: 409,
           error: 'DEPARTMENT_ALREADY_EXISTS',
+          path: '/departments',
           message: expect.stringMatching(/fin/i),
           timestamp: expect.any(String),
         });
@@ -365,6 +503,7 @@ describe('Departments (E2E)', () => {
 
         const response = await request(server)
           .post('/departments')
+          .set(rootAuthHeader)
           .send({
             name: 'Child Department',
             code: 'CHILD',
@@ -375,6 +514,7 @@ describe('Departments (E2E)', () => {
         expect(response.body).toMatchObject({
           statusCode: 404,
           error: 'DEPARTMENT_NOT_FOUND',
+          path: '/departments',
           message: expect.stringMatching(/not found/i),
           timestamp: expect.any(String),
         });
@@ -383,12 +523,15 @@ describe('Departments (E2E)', () => {
   });
 
   // ============================================================
-  // GET /departments — Get All Departments // After user and auth
+  // GET /departments — Get All Departments
   // ============================================================
   describe('GET /departments', () => {
     describe('Success cases', () => {
       it('should return an empty array when no departments exist', async () => {
-        const response = await request(server).get('/departments').expect(200);
+        const response = await request(server)
+          .get('/departments')
+          .set(rootAuthHeader)
+          .expect(200);
 
         expect(response.body).toEqual([]);
       });
@@ -402,7 +545,10 @@ describe('Departments (E2E)', () => {
           isActive: false,
         });
 
-        const response = await request(server).get('/departments').expect(200);
+        const response = await request(server)
+          .get('/departments')
+          .set(rootAuthHeader)
+          .expect(200);
 
         expect(response.body).toHaveLength(3);
         expect(response.body).toEqual(
@@ -441,68 +587,6 @@ describe('Departments (E2E)', () => {
         );
       });
 
-      it('should return departments with complete field structures', async () => {
-        await departmentHelper.insert({
-          name: 'Technology',
-          code: 'TECH',
-        });
-
-        const response = await request(server).get('/departments').expect(200);
-
-        expect(response.body[0]).toMatchObject({
-          id: expect.any(String),
-          name: 'Technology',
-          code: 'TECH',
-          isActive: true,
-          parentDepartmentId: null,
-          headEmployeeId: null,
-        });
-      });
-
-      /**
-       * The CurrentUser decorator currently returns UserRole.ADMIN as a hardcoded value.
-       * ADMIN has permission to VIEW_INACTIVE_DEPARTMENTS but not VIEW_DELETED_DEPARTMENTS.
-       * Therefore, inactive departments are included in the response, but deleted departments are not.
-       */
-      it('should include inactive departments because ADMIN has VIEW_INACTIVE_DEPARTMENTS permission', async () => {
-        await departmentHelper.insert({
-          name: 'Active Department',
-          code: 'ACT',
-          isActive: true,
-        });
-        await departmentHelper.insert({
-          name: 'Inactive Department',
-          code: 'INA',
-          isActive: false,
-        });
-
-        const response = await request(server).get('/departments').expect(200);
-
-        expect(response.body).toHaveLength(2);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        const names = response.body.map((d: { name: string }) => d.name);
-        expect(names).toContain('Active Department');
-        expect(names).toContain('Inactive Department');
-      });
-
-      it('should exclude soft-deleted departments when user lacks VIEW_DELETED_DEPARTMENTS permission', async () => {
-        await departmentHelper.insert({
-          name: 'Normal Department',
-          code: 'NORM',
-        });
-        await departmentHelper.insert({
-          name: 'Deleted Department',
-          code: 'DEL',
-          deletedAt: new Date(),
-        });
-
-        const response = await request(server).get('/departments').expect(200);
-
-        // Hanya yang tidak deleted yang tampil
-        expect(response.body).toHaveLength(1);
-        expect(response.body[0].name).toBe('Normal Department');
-      });
-
       it('should return results ordered by isActive DESC and name ASC', async () => {
         await departmentHelper.insert({
           name: 'Zebra Dept',
@@ -520,7 +604,10 @@ describe('Departments (E2E)', () => {
           isActive: false,
         });
 
-        const response = await request(server).get('/departments').expect(200);
+        const response = await request(server)
+          .get('/departments')
+          .set(rootAuthHeader)
+          .expect(200);
 
         expect(response.body).toHaveLength(3);
 
@@ -532,37 +619,115 @@ describe('Departments (E2E)', () => {
       });
     });
 
-    describe('Data integration - create then get', () => {
-      it('should display newly created department via POST in GET endpoint', async () => {
-        await request(server)
-          .post('/departments')
-          .send({ name: 'Legal', code: 'LEG' })
-          .expect(201);
+    describe('Role Permission Rules', () => {
+      describe('VIEW_INACTIVE_DEPARTMENTS permission', () => {
+        it.each([
+          { role: UserRole.ROOT },
+          { role: UserRole.ADMIN },
+          { role: UserRole.HR },
+        ])(
+          'should include inactive departments when requested by $role (has VIEW_INACTIVE_DEPARTMENTS)',
+          async ({ role }) => {
+            await departmentHelper.insert({
+              name: 'Active Dept',
+              code: 'ACTD',
+              isActive: true,
+            });
+            await departmentHelper.insert({
+              name: 'Inactive Dept',
+              code: 'INAD',
+              isActive: false,
+            });
 
-        const response = await request(server).get('/departments').expect(200);
+            const response = await request(server)
+              .get('/departments')
+              .set(await createAuthHeader(crypto.randomUUID(), role))
+              .expect(200);
 
-        expect(response.body).toHaveLength(1);
-        expect(response.body[0]).toMatchObject({
-          name: 'Legal',
-          code: 'LEG',
-          isActive: true,
+            expect(response.body).toHaveLength(2);
+            expect(response.body).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({ name: 'Active Dept' }),
+                expect.objectContaining({ name: 'Inactive Dept' }),
+              ]),
+            );
+          },
+        );
+
+        it('should exclude inactive departments when requested by EMPLOYEE (lacks VIEW_INACTIVE_DEPARTMENTS)', async () => {
+          await departmentHelper.insert({
+            name: 'Active Dept',
+            code: 'ACTD',
+            isActive: true,
+          });
+          await departmentHelper.insert({
+            name: 'Inactive Dept',
+            code: 'INAD',
+            isActive: false,
+          });
+
+          const response = await request(server)
+            .get('/departments')
+            .set(employeeAuthHeader)
+            .expect(200);
+
+          expect(response.body).toHaveLength(1);
+          expect(response.body[0].name).toBe('Active Dept');
         });
       });
 
-      it('should successfully create multiple departments and retrieve all of them', async () => {
-        const departments = [
-          { name: 'Engineering', code: 'ENG' },
-          { name: 'Product', code: 'PRD' },
-          { name: 'Design', code: 'DSG' },
-        ];
+      describe('VIEW_DELETED_DEPARTMENTS permission', () => {
+        it('should include soft-deleted departments when requested by ROOT (has VIEW_DELETED_DEPARTMENTS)', async () => {
+          await departmentHelper.insert({
+            name: 'Normal Dept',
+            code: 'NORM',
+          });
+          await departmentHelper.insert({
+            name: 'Deleted Dept',
+            code: 'DELD',
+            deletedAt: new Date(),
+          });
 
-        for (const dept of departments) {
-          await request(server).post('/departments').send(dept).expect(201);
-        }
+          const response = await request(server)
+            .get('/departments')
+            .set(rootAuthHeader)
+            .expect(200);
 
-        const response = await request(server).get('/departments').expect(200);
+          expect(response.body).toHaveLength(2);
+          expect(response.body).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ name: 'Normal Dept' }),
+              expect.objectContaining({ name: 'Deleted Dept' }),
+            ]),
+          );
+        });
 
-        expect(response.body).toHaveLength(3);
+        it.each([
+          { actorRole: () => adminAuthHeader, roleName: 'ADMIN' },
+          { actorRole: () => hrAuthHeader, roleName: 'HR' },
+          { actorRole: () => employeeAuthHeader, roleName: 'EMPLOYEE' },
+        ])(
+          'should exclude soft-deleted departments when requested by $roleName (lacks VIEW_DELETED_DEPARTMENTS)',
+          async ({ actorRole }) => {
+            await departmentHelper.insert({
+              name: 'Normal Dept',
+              code: 'NORM',
+            });
+            await departmentHelper.insert({
+              name: 'Deleted Dept',
+              code: 'DELD',
+              deletedAt: new Date(),
+            });
+
+            const response = await request(server)
+              .get('/departments')
+              .set(actorRole())
+              .expect(200);
+
+            expect(response.body).toHaveLength(1);
+            expect(response.body[0].name).toBe('Normal Dept');
+          },
+        );
       });
     });
   });

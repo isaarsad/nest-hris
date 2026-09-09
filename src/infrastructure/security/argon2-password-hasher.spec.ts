@@ -1,5 +1,6 @@
 import argon2 from 'argon2';
 import { Argon2PasswordHasher } from './argon2-password-hasher.js';
+import { PasswordHash } from '../../domain/shared/value-objects/index.js';
 
 vi.mock('argon2');
 
@@ -22,7 +23,8 @@ describe('Argon2PasswordHasher', () => {
 
       const result = await hasher.hash('mySecret123');
 
-      expect(result).toBe(fakeHash);
+      expect(result).toBeInstanceOf(PasswordHash);
+      expect(result.value).toBe(fakeHash);
       expect(argon2.hash).toHaveBeenCalledExactlyOnceWith('mySecret123');
     });
 
@@ -41,13 +43,16 @@ describe('Argon2PasswordHasher', () => {
 
   describe('compare', () => {
     it('should return true when argon2.verify confirms a matching password', async () => {
+      const fakeHash = new PasswordHash(
+        '$argon2id$v=19$m=65536,t=3,p=4$fakesalt$fakehash',
+      );
       vi.mocked(argon2.verify).mockResolvedValue(true);
 
-      const result = await hasher.compare('mySecret123', '$argon2id$fakehash');
+      const result = await hasher.compare('mySecret123', fakeHash);
 
       expect(result).toBe(true);
       expect(argon2.verify).toHaveBeenCalledExactlyOnceWith(
-        '$argon2id$fakehash',
+        fakeHash.value,
         'mySecret123',
       );
     });
@@ -57,7 +62,7 @@ describe('Argon2PasswordHasher', () => {
 
       const result = await hasher.compare(
         'wrongPassword',
-        '$argon2id$fakehash',
+        new PasswordHash('$argon2id$v=19$m=65536,t=3,p=4$fakesalt$fakehash'),
       );
 
       expect(result).toBe(false);
@@ -66,17 +71,10 @@ describe('Argon2PasswordHasher', () => {
     it('should return false (not throw) when argon2.verify throws an error', async () => {
       vi.mocked(argon2.verify).mockRejectedValue(new Error('malformed hash'));
 
-      const result = await hasher.compare('anyPassword', 'invalid-hash');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false when argon2.verify throws with an empty string hash', async () => {
-      vi.mocked(argon2.verify).mockRejectedValue(
-        new Error('pchstr must contain a $'),
+      const result = await hasher.compare(
+        'anyPassword',
+        new PasswordHash('$argon2id$v=19$m=65536,t=3,p=4$fakesalt$fakehash'),
       );
-
-      const result = await hasher.compare('anyPassword', '');
 
       expect(result).toBe(false);
     });

@@ -86,6 +86,12 @@ describe('RequestingUser entity', () => {
     it('should have VIEW_DELETED_USERS permission', () => {
       expect(root.hasPermission(UserPermission.VIEW_DELETED_USERS)).toBe(true);
     });
+
+    it('should have REVOKE_USER_SESSIONS permission', () => {
+      expect(root.hasPermission(UserPermission.REVOKE_USER_SESSIONS)).toBe(
+        true,
+      );
+    });
   });
 
   // === hasPermission: ADMIN ===
@@ -125,8 +131,8 @@ describe('RequestingUser entity', () => {
       expect(admin.hasPermission(UserPermission.ACTIVATE_USER)).toBe(true);
     });
 
-    it('should NOT have DELETE_USER permission', () => {
-      expect(admin.hasPermission(UserPermission.DELETE_USER)).toBe(false);
+    it('should have DELETE_USER permission', () => {
+      expect(admin.hasPermission(UserPermission.DELETE_USER)).toBe(true);
     });
 
     it('should have RESTORE_USER permission', () => {
@@ -145,6 +151,12 @@ describe('RequestingUser entity', () => {
 
     it('should have VIEW_DELETED_USERS permission', () => {
       expect(admin.hasPermission(UserPermission.VIEW_DELETED_USERS)).toBe(true);
+    });
+
+    it('should have REVOKE_USER_SESSIONS permission', () => {
+      expect(admin.hasPermission(UserPermission.REVOKE_USER_SESSIONS)).toBe(
+        true,
+      );
     });
   });
 
@@ -203,6 +215,10 @@ describe('RequestingUser entity', () => {
 
     it('should NOT have VIEW_DELETED_USERS permission', () => {
       expect(hr.hasPermission(UserPermission.VIEW_DELETED_USERS)).toBe(false);
+    });
+
+    it('should have REVOKE_USER_SESSIONS permission', () => {
+      expect(hr.hasPermission(UserPermission.REVOKE_USER_SESSIONS)).toBe(true);
     });
   });
 
@@ -269,6 +285,12 @@ describe('RequestingUser entity', () => {
 
     it('should NOT have VIEW_DELETED_USERS permission', () => {
       expect(employee.hasPermission(UserPermission.VIEW_DELETED_USERS)).toBe(
+        false,
+      );
+    });
+
+    it('should NOT have REVOKE_USER_SESSIONS permission', () => {
+      expect(employee.hasPermission(UserPermission.REVOKE_USER_SESSIONS)).toBe(
         false,
       );
     });

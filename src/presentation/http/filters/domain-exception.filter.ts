@@ -19,7 +19,7 @@ export const STATUS_MAP: Record<DomainErrorCategory, HttpStatus> = {
   INVARIANT: HttpStatus.BAD_REQUEST,
   CONFLICT: HttpStatus.CONFLICT,
   FORBIDDEN: HttpStatus.FORBIDDEN,
-  // auth
+  UNAUTHORIZED: HttpStatus.UNAUTHORIZED,
 };
 
 @Catch()
@@ -83,6 +83,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       ...errorBody,
+      path: url,
       timestamp: new Date().toISOString(),
     });
   }

@@ -13,14 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # Database
       PGHOST: localhost
       PGUSER: developer
       PGPASSWORD: supersecretpassword
       PGDATABASE: hris_test
       PGPORT: 5432
-      ACCESS_TOKEN_KEY: supersecretaccesskey
-      REFRESH_TOKEN_KEY: supersecretrefreshkey
-      PRE_AUTH_TOKEN_KEY: supersecretpreauthkey
+
+      # JWT & Tokenize
+      JWT_ACCESS_SECRET: supersecretaccesskey1234567890abcdef1234567890
+      JWT_ACCESS_EXPIRES_IN: 15m
+      REFRESH_TOKEN_TTL_IDLE_DAYS: 7
+      REFRESH_TOKEN_TTL_ABSOLUTE_DAYS: 30
+      REFRESH_TOKEN_CONCURRENCY_LEEWAY_MS: 5000
 
     services:
       postgres:

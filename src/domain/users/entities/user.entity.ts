@@ -78,7 +78,7 @@ export class User {
     id: string;
     username: string;
     email: string;
-    passwordHash: string;
+    passwordHash: PasswordHash;
     role: UserRole;
   }): User {
     const now = new Date();
@@ -86,13 +86,17 @@ export class User {
       id: props.id,
       username: new Username(props.username),
       email: new Email(props.email),
-      passwordHash: new PasswordHash(props.passwordHash),
+      passwordHash: props.passwordHash,
       role: props.role,
       isActive: true,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
     });
+  }
+
+  isDeleted(): boolean {
+    return this._deletedAt !== null;
   }
 
   changeRole(newRole: UserRole): void {
@@ -148,7 +152,7 @@ export class User {
   }
 
   private ensureNotDeleted(): void {
-    if (this._deletedAt !== null) {
+    if (this.isDeleted()) {
       throw new UserAlreadyDeletedError(this._username.value, this.id);
     }
   }

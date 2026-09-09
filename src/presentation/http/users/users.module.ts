@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { randomUUID } from 'node:crypto';
 
 // Domain Layer (Abstract Class / Interface Repository)
 import { UserRepository } from '../../../domain/users/user.repository.js';
-import { PasswordHasher } from '../../../domain/shared/ports/password-hasher.port.js';
+import { PasswordHasher } from '../../../domain/users/ports/password-hasher.port.js';
+import { IdGeneratorPort } from '../../../domain/shared/ports/id-generator.port.js';
 
 // Application Layer (Use Cases)
 import { CreateUserUseCase } from '../../../application/users/create-user.use-case.js';
@@ -17,11 +17,13 @@ import { ChangeUserRoleUseCase } from '../../../application/users/change-user-ro
 import { UserOrmEntity } from '../../../infrastructure/database/entities/user.orm-entity.js';
 import { TypeOrmUserRepository } from '../../../infrastructure/repositories/typeorm-user.repository.js';
 import { Argon2PasswordHasher } from '../../../infrastructure/security/argon2-password-hasher.js';
+import { UuidGenerator } from '../../../infrastructure/utils/uuid-generator.js';
 
 // Presentation Layer (Controller)
 import { UsersController } from './users.controller.js';
 
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
+export const ID_GENERATOR = Symbol('ID_GENERATOR');
 export const PASSWORD_HASHER = Symbol('PASSWORD_HASHER');
 
 @Module({
@@ -37,17 +39,18 @@ export const PASSWORD_HASHER = Symbol('PASSWORD_HASHER');
       useClass: Argon2PasswordHasher,
     },
     {
+      provide: ID_GENERATOR,
+      useClass: UuidGenerator,
+    },
+    {
       provide: CreateUserUseCase,
-      inject: [USER_REPOSITORY, PASSWORD_HASHER],
+      inject: [USER_REPOSITORY, ID_GENERATOR, PASSWORD_HASHER],
       useFactory: (
         userRepo: UserRepository,
+        idGenerator: IdGeneratorPort,
         passwordHasher: PasswordHasher,
       ) => {
-        return new CreateUserUseCase(
-          userRepo,
-          () => randomUUID(),
-          passwordHasher,
-        );
+        return new CreateUserUseCase(userRepo, idGenerator, passwordHasher);
       },
     },
     {

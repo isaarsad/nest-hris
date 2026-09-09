@@ -11,6 +11,7 @@ import {
 } from '../../domain/departments/errors/index.js';
 import { RequestingUser } from '../../domain/users/entities/requesting-user.entity.js';
 import { UserRole } from '../../domain/users/user-role-permissions.js';
+import { IdGeneratorPort } from '../../domain/shared/ports/id-generator.port.js';
 
 // ─── Mock helpers ────────────────────────────────────────────────────────────
 
@@ -24,7 +25,9 @@ const mockDepartmentRepository = (): DepartmentRepository => ({
   existByCode: vi.fn(),
 });
 
-const mockIdGenerator = () => 'id-123';
+const makeIdGenerator = (): IdGeneratorPort => ({
+  generate: vi.fn().mockReturnValue('id-123'),
+});
 
 const makeDepartment = (overrides: Partial<DepartmentProps> = {}): Department =>
   new Department({
@@ -51,14 +54,13 @@ const makeUnauthorizedUser = () =>
 
 describe('CreateDepartmentUseCase', () => {
   let departmentRepository: DepartmentRepository;
+  let idGenerator: IdGeneratorPort;
   let useCase: CreateDepartmentUseCase;
 
   beforeEach(() => {
     departmentRepository = mockDepartmentRepository();
-    useCase = new CreateDepartmentUseCase(
-      departmentRepository,
-      mockIdGenerator,
-    );
+    idGenerator = makeIdGenerator();
+    useCase = new CreateDepartmentUseCase(departmentRepository, idGenerator);
   });
 
   // ── Permission guard ────────────────────────────────────────────────────────
