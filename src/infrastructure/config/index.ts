@@ -23,5 +23,15 @@ export const config = {
     username: env.PGUSER,
     password: env.PGPASSWORD,
     database: env.PGDATABASE,
+
+    // SSL for Database (Supabase)
+    ssl: {
+      rejectUnauthorized: false,
+    },
+    extra: {
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    },
   },
 };
