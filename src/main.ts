@@ -16,9 +16,7 @@ async function bootstrap() {
 
   await app.listen(port, host);
 
-  const appUrl = await app.getUrl();
-
-  logger.log(`HRIS Server running on: ${appUrl}`);
+  logger.log(`HRIS Server listening on: http://${host}:${port}`);
   logger.log(`Environment: ${process.env.NODE_ENV}`);
 }
 
