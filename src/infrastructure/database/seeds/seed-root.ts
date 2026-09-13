@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import argon2 from 'argon2';
 import { z } from 'zod';

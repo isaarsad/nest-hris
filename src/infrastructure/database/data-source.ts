@@ -7,11 +7,7 @@ import { RefreshTokenOrmEntity } from './entities/refresh-token.orm-entity.js';
 export const dataSourceOptions: DataSourceOptions = {
   ...config.database,
   entities: [DepartmentOrmEntity, UserOrmEntity, RefreshTokenOrmEntity],
-  migrations: [
-    process.env.NODE_ENV === 'production'
-      ? 'dist/migrations/*.js'
-      : 'migrations/*.ts',
-  ],
+  migrations: ['migrations/*.ts'],
   migrationsRun: false,
   synchronize: false,
   logging: process.env.NODE_ENV !== 'production',
