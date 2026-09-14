@@ -48,6 +48,10 @@ const envSchema = z
       .int()
       .nonnegative()
       .default(5000),
+    DB_SSL: z
+      .string()
+      .default('false')
+      .transform((val) => val === 'true'),
   })
   .refine(
     (data) =>

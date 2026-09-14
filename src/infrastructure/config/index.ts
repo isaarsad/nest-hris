@@ -25,13 +25,6 @@ export const config = {
     database: env.PGDATABASE,
 
     // SSL for Database (Supabase)
-    ssl: {
-      rejectUnauthorized: false,
-    },
-    extra: {
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    },
+    ssl: env.DB_SSL ? { rejectUnauthorized: false } : false,
   },
 };
