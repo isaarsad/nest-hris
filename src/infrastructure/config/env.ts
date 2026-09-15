@@ -50,7 +50,7 @@ const envSchema = z
       .default(5000),
     DB_SSL: z
       .string()
-      .default('false')
+      .default(nodeEnv === 'production' ? 'true' : 'false')
       .transform((val) => val === 'true'),
   })
   .refine(
